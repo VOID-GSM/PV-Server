@@ -42,3 +42,5 @@ jobs:
         uses: sarisia/actions-status-discord@v1
         with:
           webhook: ${{ secrets.DISCORD_SERVER_WEBHOOK }}
+          title: ${{ job.status == 'success' && '✅ 성공 ✅' || '❌ 실패 ❌' }}
+          description: ${{ job.status == 'success' && '빌드 성공' || '빌드 실패' }}
