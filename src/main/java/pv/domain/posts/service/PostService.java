@@ -7,7 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+import pv.global.exception.CustomException;
 import pv.domain.posts.dto.PostCreateRequest;
 import pv.domain.posts.dto.PostResponse;
 import pv.domain.posts.dto.PostSearchCondition;
@@ -26,7 +26,7 @@ public class PostService {
     private final PostRepository postRepository;
     public Page<PostSummaryResponse> getPosts(PostSearchCondition cond, Long currentMemberId, Pageable pageable) {
         if (cond.from() != null && cond.to() != null && cond.from().isAfter(cond.to())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from이 to보다 늦습니다.");
+            throw new CustomException(HttpStatus.BAD_REQUEST, "from이 to보다 늦습니다.");
         }
         Specification<Post> spec = Specification.where(activityId(cond.activityId()))
                 .and(sessionId(cond.sessionId()))
@@ -57,7 +57,7 @@ public class PostService {
     public PostResponse update(Long postId, PostUpdateRequest req, Long currentMemberId) {
         Post post = findPost(postId);
         if (!post.isWrittenBy(currentMemberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 글만 수정할 수 있습니다.");
+            throw new CustomException(HttpStatus.FORBIDDEN, "본인 글만 수정할 수 있습니다.");
         }
         post.update(req.title(), req.content());
         postRepository.flush();
@@ -68,14 +68,14 @@ public class PostService {
     public void delete(Long postId, Long currentMemberId, boolean isLeader) {
         Post post = findPost(postId);
         if (!post.isWrittenBy(currentMemberId) && !isLeader) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "삭제 권한이 없습니다.");
+            throw new CustomException(HttpStatus.FORBIDDEN, "삭제 권한이 없습니다.");
         }
         postRepository.delete(post);
     }
 
     public List<PostResponse> compare(Long sessionId, Long questionId) {
         if ((sessionId == null) == (questionId == null)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            throw new CustomException(HttpStatus.BAD_REQUEST,
                     "sessionId와 questionId 중 정확히 하나만 지정하세요.");
         }
         List<Post> posts = sessionId != null
@@ -86,7 +86,7 @@ public class PostService {
 
     private Post findPost(Long postId) {
         return postRepository.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "정리글이 없습니다."));
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "정리글이 없습니다."));
     }
 
     private Long resolveAuthor(String author, Long currentMemberId) {
@@ -99,7 +99,7 @@ public class PostService {
         try {
             return Long.parseLong(author);
         } catch (NumberFormatException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "author는 'me' 또는 숫자 id 여야합니다.");
+            throw new CustomException(HttpStatus.BAD_REQUEST, "author는 'me' 또는 숫자 id 여야합니다.");
         }
     }
 }
