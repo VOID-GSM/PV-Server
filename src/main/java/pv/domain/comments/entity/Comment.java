@@ -50,6 +50,26 @@ public class Comment {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    public static Comment create(TargetType type, Long targetId, Long authorId, String content, Anchor anchor) {
+        validateContent(content);
+        Comment c = new Comment();
+        c.targetType = type;
+        c.targetId = targetId;
+        c.authorId = authorId;
+        c.content = content;
+        c.anchor = anchor;
+        return c;
+    }
+
+    public boolean isAuthor(Long memberId) {
+        return authorId.equals(memberId);
+    }
+
+    public void edit(String content) {
+        validateContent(content);
+        this.content = content;
+    }
+
     private static void validateContent(String content) {
         if (content == null || content.isBlank()) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "댓글 내용이 비었습니다.");
