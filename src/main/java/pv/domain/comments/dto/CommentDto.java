@@ -3,6 +3,7 @@ package pv.domain.comments.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Null;
 import jakarta.validation.constraints.Size;
 import pv.domain.comments.entity.Anchor;
 import pv.domain.comments.entity.Comment;
@@ -21,7 +22,8 @@ public class CommentDto {
             @NotNull TargetType targetType,
             @NotNull Long targetId,
             @NotBlank @Size(max = 5000) String content,
-            @Valid AnchorRequest anchor
+            @Null(message = "인라인 댓글(anchor) 기능은 아직 지원하지 않습니다.")
+            AnchorRequest anchor
     ) {}
 
     public record Update(@NotBlank @Size(max = 5000) String content) {}
