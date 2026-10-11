@@ -3,6 +3,7 @@ package pv.global.exception;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
@@ -28,5 +29,19 @@ public class GlobalExceptionHandler {
             String message,
             LocalDateTime timestamp
     ) {
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException e) {
+
+        ErrorResponse response = new ErrorResponse(
+                e.getStatusCode().value(),
+                e.getReason(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(e.getStatusCode())
+                .body(response);
     }
 }
