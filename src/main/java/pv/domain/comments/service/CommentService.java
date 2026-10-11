@@ -43,6 +43,7 @@ public class CommentService {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 댓글만 수정할 수 있습니다.");
         }
         comment.edit(req.content());
+        // @UpdateTimestamp 는 flush 시점에 갱신되므로, 응답의 updatedAt 반영을 위해 명시적 flush함
         commentRepository.flush();
         return CommentDto.Response.from(comment);
     }
