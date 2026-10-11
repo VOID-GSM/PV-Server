@@ -54,7 +54,10 @@ public class FeedbackRequest {
     }
 
     public void complete() {
-        if (completedAt == null) completedAt = LocalDateTime.now();
+        if (completedAt == null) {
+            throw new CustomException(HttpStatus.CONFLICT, "이미 완료된 피드백 요청입니다.");
+        }
+        completedAt = LocalDateTime.now();
     }
 
     public boolean isReceiver(Long memberId) {
