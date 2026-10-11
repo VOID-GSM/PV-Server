@@ -9,7 +9,5 @@ import jakarta.validation.constraints.Size;
 public record UploadUrlRequest(
         @NotBlank @Size(max = 255) String fileName,
         @NotBlank @Size(max = 127) String contentType,
-        @NotNull @Positive @Max(MAX_SIZE_BYTES) Long size
-) {
-    public static final Long MAX_SIZE_BYTES = 10L * 1024 * 1024;
-}
+        @NotNull @Positive Long size
+) {}
