@@ -16,8 +16,8 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private Long memberId;
+    @Column(nullable = false)
+    private Long memberId; // 멤버당 여러 개 (기기별로 1개씩)
 
     @Column(unique = true, nullable = false)
     private String token;
@@ -30,16 +30,11 @@ public class RefreshToken {
         this.expiresAt = expiresAt;
     }
 
-    public void rotate(String token, LocalDateTime expiresAt) {
-        this.token = token;
+    public void extend(LocalDateTime expiresAt) {
         this.expiresAt = expiresAt;
     }
 
     public boolean isExpired() {
         return expiresAt.isBefore(LocalDateTime.now());
-    }
-
-    public void extend(LocalDateTime expiresAt) {
-        this.expiresAt = expiresAt;
     }
 }

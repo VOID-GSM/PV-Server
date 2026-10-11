@@ -222,17 +222,15 @@ public class AuthService {
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 멤버입니다."));
     }
 
-    // access 토큰 + refresh 토큰 발급 (멤버당 refresh 토큰 1개 유지)
+    // access 토큰 + refresh 토큰 발급 (기기마다 새 refresh 토큰을 만들고 기존 기기는 유지)
     private TokenRefreshResponse issueTokens(Long memberId) {
-        String refreshToken = generateCode();
-        LocalDateTime expiresAt = LocalDateTime.now().plusDays(REFRESH_TOKEN_DAYS);
+        // 이 멤버의 만료된 토큰만 정리
+        refreshTokenRepository.deleteByMemberIdAndExpiresAtBefore(memberId, LocalDateTime.now());
 
-        RefreshToken saved = refreshTokenRepository.findByMemberId(memberId).orElse(null);
-        if (saved == null) {
-            refreshTokenRepository.save(new RefreshToken(memberId, refreshToken, expiresAt));
-        } else {
-            saved.rotate(refreshToken, expiresAt);
-        }
+        String refreshToken = generateCode();
+        refreshTokenRepository.save(new RefreshToken(
+                memberId, refreshToken, LocalDateTime.now().plusDays(REFRESH_TOKEN_DAYS)));
+
         return new TokenRefreshResponse(jwtProvider.createAccessToken(memberId), refreshToken);
     }
 
