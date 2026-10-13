@@ -19,17 +19,23 @@ public class Board {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private Long teamId;
 
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private BoardType type;
 
+    @Column(nullable = false, length = 20)
     private String color;
 
+    @Column(nullable = false)
     private LocalDate startDate;
 
+    @Column(nullable = false)
     private LocalDate endDate;
 
     // D-day 알림 단계 (예: 7, 3, 1 -> D-7, D-3, D-1에 알림)
@@ -39,6 +45,7 @@ public class Board {
     private Set<Integer> alertDays = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private BoardStatus status;
 
     private LocalDateTime createdAt;
