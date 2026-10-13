@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import pv.domain.auth.dto.request.InviteCreateRequest;
 import pv.domain.auth.dto.request.JoinRequestCreateRequest;
 import pv.domain.auth.dto.request.TeamSettingsUpdateRequest;
@@ -24,6 +23,7 @@ import pv.domain.member.entity.Member;
 import pv.domain.member.entity.MemberStatus;
 import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
+import pv.global.exception.CustomException; // 패키지 경로는 실제 위치에 맞게 수정
 import pv.global.security.JwtProvider;
 
 import java.time.LocalDateTime;
@@ -238,7 +238,7 @@ public class AuthService {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
-    private ResponseStatusException error(HttpStatus status, String message) {
-        return new ResponseStatusException(status, message);
+    private CustomException error(HttpStatus status, String message) {
+        return new CustomException(status, message);
     }
 }
