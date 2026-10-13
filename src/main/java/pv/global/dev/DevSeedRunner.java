@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import pv.domain.member.entity.Member;
@@ -18,6 +19,7 @@ import java.util.HashSet;
 // 부장 토큰을 받기 위한 로컬용 파일입니다!!
 @Slf4j
 @Component
+@Profile("local")
 @RequiredArgsConstructor
 public class DevSeedRunner implements ApplicationRunner {
 
