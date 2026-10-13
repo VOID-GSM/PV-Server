@@ -7,6 +7,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pv.domain.member.entity.Member;
+import pv.domain.member.entity.MemberStatus;
+import pv.domain.member.repository.MemberRepository;
 import pv.global.exception.CustomException;
 import pv.domain.posts.dto.PostCreateRequest;
 import pv.domain.posts.dto.PostResponse;
@@ -24,7 +27,10 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class PostService {
     private final PostRepository postRepository;
+    private final MemberRepository memberRepository;
+
     public Page<PostSummaryResponse> getPosts(PostSearchCondition cond, Long currentMemberId, Pageable pageable) {
+        findJoinedMember(currentMemberId);
         if (cond.from() != null && cond.to() != null && cond.from().isAfter(cond.to())) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "from이 to보다 늦습니다.");
         }
@@ -38,6 +44,7 @@ public class PostService {
 
     @Transactional
     public PostResponse create(PostCreateRequest req, Long currentMemberId) {
+        findJoinedMember(currentMemberId);
         Post post = Post.create(
                 currentMemberId,
                 req.activityId(),
@@ -49,12 +56,14 @@ public class PostService {
         return PostResponse.from(postRepository.save(post));
     }
 
-    public PostResponse getPost(Long postId) {
+    public PostResponse getPost(Long postId, Long currentMemberId) {
+        findJoinedMember(currentMemberId);
         return PostResponse.from(findPost(postId));
     }
 
     @Transactional
     public PostResponse update(Long postId, PostUpdateRequest req, Long currentMemberId) {
+        findJoinedMember(currentMemberId);
         Post post = findPost(postId);
         if (!post.isWrittenBy(currentMemberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 글만 수정할 수 있습니다.");
@@ -65,15 +74,17 @@ public class PostService {
     }
 
     @Transactional
-    public void delete(Long postId, Long currentMemberId, boolean isLeader) {
+    public void delete(Long postId, Long currentMemberId) {
+        Member member = findJoinedMember(currentMemberId);
         Post post = findPost(postId);
-        if (!post.isWrittenBy(currentMemberId) && !isLeader) {
+        if (!post.isWrittenBy(currentMemberId) && !member.isLeader()) {
             throw new CustomException(HttpStatus.FORBIDDEN, "삭제 권한이 없습니다.");
         }
         postRepository.delete(post);
     }
 
-    public List<PostResponse> compare(Long sessionId, Long questionId) {
+    public List<PostResponse> compare(Long sessionId, Long questionId, Long currentMemberId) {
+        findJoinedMember(currentMemberId);
         if ((sessionId == null) == (questionId == null)) {
             throw new CustomException(HttpStatus.BAD_REQUEST,
                     "sessionId와 questionId 중 정확히 하나만 지정하세요.");
@@ -87,6 +98,14 @@ public class PostService {
     private Post findPost(Long postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "정리글이 없습니다."));
+    }
+
+    private Member findJoinedMember(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "회원이 없습니다."));
+        if (member.getStatus() != MemberStatus.JOINED) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "가입 승인 후 이용할 수 있습니다.");
+        } return member;
     }
 
     private Long resolveAuthor(String author, Long currentMemberId) {

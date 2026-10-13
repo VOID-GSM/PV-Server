@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pv.domain.posts.dto.PostCompareCondition;
 import pv.domain.posts.dto.PostCreateRequest;
 import pv.domain.posts.dto.PostResponse;
 import pv.domain.posts.dto.PostSearchCondition;
@@ -54,15 +55,18 @@ public class PostController {
 
     @GetMapping("/compare")
     public ResponseEntity<List<PostResponse>> compare(
-            @RequestParam(required = false) Long sessionId,
-            @RequestParam(required = false) Long questionId
+            @Valid @ModelAttribute PostCompareCondition cond,
+            @RequestAttribute("memberId") Long memberId
     ) {
-        return ResponseEntity.ok(postService.compare(sessionId, questionId));
+        return ResponseEntity.ok(postService.compare(cond.sessionId(), cond.questionId(), memberId));
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<PostResponse> getPost(@PathVariable Long postId) {
-        return ResponseEntity.ok(postService.getPost(postId));
+    public ResponseEntity<PostResponse> getPost(
+            @PathVariable Long postId,
+            @RequestAttribute("memberId") Long memberId
+    ) {
+        return ResponseEntity.ok(postService.getPost(postId, memberId));
     }
 
     @PatchMapping("/{postId}")
@@ -77,10 +81,9 @@ public class PostController {
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long postId,
-            @RequestAttribute("memberId") Long memberId,
-            @RequestAttribute(value = "isLeader", required = false) Boolean isLeader
+            @RequestAttribute("memberId") Long memberId
     ) {
-        postService.delete(postId, memberId, Boolean.TRUE.equals(isLeader));
+        postService.delete(postId, memberId);
         return ResponseEntity.noContent().build();
     }
 }
