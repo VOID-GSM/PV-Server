@@ -9,6 +9,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Getter
@@ -38,16 +40,18 @@ public class Board {
     @Column(nullable = false)
     private LocalDate endDate;
 
-    // D-day 알림 단계 (예: 7, 3, 1 -> D-7, D-3, D-1에 알림)
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection
     @CollectionTable(name = "board_alert_days", joinColumns = @JoinColumn(name = "board_id"))
     @Column(name = "alert_day")
+    @BatchSize(size = 100)
     private Set<Integer> alertDays = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BoardStatus status;
 
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public Board(Long teamId, String name, BoardType type, String color,
@@ -60,7 +64,6 @@ public class Board {
         this.endDate = endDate;
         if (alertDays != null) this.alertDays.addAll(alertDays);
         this.status = BoardStatus.ACTIVE;
-        this.createdAt = LocalDateTime.now();
     }
 
     public boolean isClosed() {
