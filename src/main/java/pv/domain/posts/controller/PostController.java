@@ -55,14 +55,18 @@ public class PostController {
     @GetMapping("/compare")
     public ResponseEntity<List<PostResponse>> compare(
             @RequestParam(required = false) Long sessionId,
-            @RequestParam(required = false) Long questionId
+            @RequestParam(required = false) Long questionId,
+            @RequestAttribute("memberId") Long memberId
     ) {
-        return ResponseEntity.ok(postService.compare(sessionId, questionId));
+        return ResponseEntity.ok(postService.compare(sessionId, questionId, memberId));
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<PostResponse> getPost(@PathVariable Long postId) {
-        return ResponseEntity.ok(postService.getPost(postId));
+    public ResponseEntity<PostResponse> getPost(
+            @PathVariable Long postId,
+            @RequestAttribute("memberId") Long memberId
+    ) {
+        return ResponseEntity.ok(postService.getPost(postId, memberId));
     }
 
     @PatchMapping("/{postId}")
@@ -77,10 +81,9 @@ public class PostController {
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long postId,
-            @RequestAttribute("memberId") Long memberId,
-            @RequestAttribute(value = "isLeader", required = false) Boolean isLeader
+            @RequestAttribute("memberId") Long memberId
     ) {
-        postService.delete(postId, memberId, Boolean.TRUE.equals(isLeader));
+        postService.delete(postId, memberId);
         return ResponseEntity.noContent().build();
     }
 }
