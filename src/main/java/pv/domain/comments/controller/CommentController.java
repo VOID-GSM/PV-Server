@@ -28,9 +28,10 @@ public class CommentController {
     private final CommentService commentService;
 
     @GetMapping
-    public List<CommentDto.Response> getComments(@RequestParam TargetType targetType,
+    public List<CommentDto.Response> getComments(@AuthenticationPrincipal Long memberId,
+                                                 @RequestParam TargetType targetType,
                                                  @RequestParam Long targetId) {
-        return commentService.getComments(targetType, targetId);
+        return commentService.getComments(memberId, targetType, targetId);
     }
 
     @PostMapping

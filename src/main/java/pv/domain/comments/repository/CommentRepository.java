@@ -7,5 +7,5 @@ import pv.domain.comments.entity.TargetType;
 import java.util.List;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
-    List<Comment> findByTargetTypeAndTargetIdOrderByCreatedAtAsc(TargetType targetType, Long targetId);
+    List<Comment> findByTeamIdAndTargetTypeAndTargetIdOrderByCreatedAtAsc(Long teamId,TargetType targetType, Long targetId);
 }
