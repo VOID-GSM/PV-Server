@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pv.domain.posts.dto.PostCompareCondition;
 import pv.domain.posts.dto.PostCreateRequest;
 import pv.domain.posts.dto.PostResponse;
 import pv.domain.posts.dto.PostSearchCondition;
@@ -54,11 +55,10 @@ public class PostController {
 
     @GetMapping("/compare")
     public ResponseEntity<List<PostResponse>> compare(
-            @RequestParam(required = false) Long sessionId,
-            @RequestParam(required = false) Long questionId,
+            @Valid @ModelAttribute PostCompareCondition cond,
             @RequestAttribute("memberId") Long memberId
     ) {
-        return ResponseEntity.ok(postService.compare(sessionId, questionId, memberId));
+        return ResponseEntity.ok(postService.compare(cond.sessionId(), cond.questionId(), memberId));
     }
 
     @GetMapping("/{postId}")
