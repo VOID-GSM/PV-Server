@@ -13,10 +13,13 @@ public class ActivityTopicScheduler {
 
     private final ActivityService activityService;
 
-    // 매일 00:05, 투표가 마감된 회차의 주제를 확정
-    @Scheduled(cron = "0 5 0 * * *")
+    // 1분마다 투표 마감 여부를 확인하고 주제를 자동 확정한다.
+    @Scheduled(fixedDelay = 60000)
     public void confirmClosedTopics() {
         int confirmed = activityService.confirmClosedTopics();
-        log.info("주제 자동 확정: {}건", confirmed);
+
+        if (confirmed > 0) {
+            log.info("주제 자동 확정: {}건", confirmed);
+        }
     }
 }

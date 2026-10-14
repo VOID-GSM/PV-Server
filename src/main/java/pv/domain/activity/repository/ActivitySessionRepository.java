@@ -26,14 +26,15 @@ public interface ActivitySessionRepository extends JpaRepository<ActivitySession
     List<ActivitySession> findTop3ByActivityIdAndStatusAndSessionDateGreaterThanEqualOrderBySessionDateAsc(
             Long activityId, SessionStatus status, LocalDate date);
 
-    // 투표 마감(회차 당일 이후)됐는데 주제가 아직 없는 투표형 회차
+    // 회차 날짜가 오늘이거나 과거이며, 주제가 아직 확정되지 않은 투표형 회차
     @Query("select s from ActivitySession s where s.topic is null and s.status = :status "
             + "and s.sessionDate <= :today "
             + "and s.activityId in (select a.id from Activity a where a.topicMode = :mode)")
-    List<ActivitySession> findClosedVoteSessions(@Param("today") LocalDate today,
-                                                 @Param("status") SessionStatus status,
-                                                 @Param("mode") TopicMode mode);
-
+    List<ActivitySession> findClosedVoteSessions(
+            @Param("today") LocalDate today,
+            @Param("status") SessionStatus status,
+            @Param("mode") TopicMode mode
+    );
     @Modifying(flushAutomatically = true)
     @Query("delete from ActivitySession s where s.activityId = :activityId")
     void deleteAllByActivityId(@Param("activityId") Long activityId);

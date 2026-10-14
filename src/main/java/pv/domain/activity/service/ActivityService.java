@@ -19,6 +19,7 @@ import pv.global.exception.CustomException;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
@@ -32,6 +33,10 @@ public class ActivityService {
     // 반복 회차를 자동 생성하는 최대 기간 (회차 폭증 방지)
     private static final long MAX_PERIOD_DAYS = 366;
     private static final int DEFAULT_TOPIC_OPEN_DAYS = 3;
+
+    // 투표 마감 시간: 회차 당일 오후 3시
+    private static final java.time.LocalTime TOPIC_VOTE_DEADLINE =
+            java.time.LocalTime.of(15, 0);
 
     private final ActivityRepository activityRepository;
     private final ActivityMemberRepository activityMemberRepository;
@@ -99,10 +104,12 @@ public class ActivityService {
                 .collect(Collectors.toSet()));
 
         LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+
         List<SessionResponse> upcoming = sessionRepository
                 .findTop3ByActivityIdAndStatusAndSessionDateGreaterThanEqualOrderBySessionDateAsc(
                         activityId, SessionStatus.SCHEDULED, today).stream()
-                .map(s -> SessionResponse.of(s, isVotingOpen(activity, s, today)))
+                .map(s -> SessionResponse.of(s, isVotingOpen(activity, s, now)))
                 .toList();
 
         return ActivityDetailResponse.of(activity, ActivitySummaryResponse.of(activity, members.size()),
@@ -265,9 +272,10 @@ public class ActivityService {
         Member member = getMember(loginMemberId);
         Activity activity = getActivityOf(member, activityId);
 
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+
         return sessionRepository.findAllByActivityIdOrderBySessionNoAsc(activityId).stream()
-                .map(s -> SessionResponse.of(s, isVotingOpen(activity, s, today)))
+                .map(s -> SessionResponse.of(s, isVotingOpen(activity, s, now)))
                 .toList();
     }
 
@@ -275,7 +283,11 @@ public class ActivityService {
         Member member = getMember(loginMemberId);
         Activity activity = getActivityOf(member, activityId);
         ActivitySession session = findSession(activityId, sessionId);
-        return SessionResponse.of(session, isVotingOpen(activity, session, LocalDate.now()));
+
+        return SessionResponse.of(
+                session,
+                isVotingOpen(activity, session, LocalDateTime.now())
+        );
     }
 
     // 회차 행을 잠그고 수정 (투표/주제 확정과 동시에 바뀌는 것 방지)
@@ -326,6 +338,7 @@ public class ActivityService {
 
         ActivitySession session = getSessionForUpdate(activityId, sessionId);
         requireVotingOpen(activity, session);
+
         String title = request.title().trim();
         if (candidateRepository.existsBySessionIdAndTitle(sessionId, title)) {
             throw error(HttpStatus.CONFLICT, "이미 제안된 주제입니다.");
@@ -345,6 +358,7 @@ public class ActivityService {
 
         ActivitySession session = getSessionForUpdate(activityId, sessionId);
         requireVotingOpen(activity, session);
+
         candidateRepository.findByIdAndSessionId(candidateId, sessionId)
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 주제 후보입니다."));
         if (voteRepository.findBySessionIdAndMemberId(sessionId, member.getId()).isPresent()) {
@@ -362,39 +376,80 @@ public class ActivityService {
 
         ActivitySession session = getSessionForUpdate(activityId, sessionId);
         requireVotingOpen(activity, session);
+
         TopicVote vote = voteRepository
                 .findBySessionIdAndMemberIdAndCandidateId(sessionId, member.getId(), candidateId)
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 투표입니다."));
         voteRepository.delete(vote);
     }
 
-    // 스케줄러용: 투표가 마감된 회차의 주제를 최다 득표 후보로 확정 (동률이면 먼저 제안된 후보)
-    // 쿼리는 회차 수와 상관없이 4번 (회차, 득표, 후보 일괄 조회)
+    // 스케줄러용: 회차 당일 오후 3시가 지난 회차의 주제를 최다 득표 후보로 확정
+    // 동률이면 먼저 제안된 후보를 선택한다.
     @Transactional
     public int confirmClosedTopics() {
-        List<ActivitySession> sessions = sessionRepository.findClosedVoteSessions(
-                LocalDate.now(), SessionStatus.SCHEDULED, TopicMode.VOTE);
-        if (sessions.isEmpty()) return 0;
+        LocalDateTime now = LocalDateTime.now();
 
-        Set<Long> sessionIds = sessions.stream().map(ActivitySession::getId).collect(Collectors.toSet());
+        // 회차 날짜가 오늘이거나 과거인 미확정 투표형 회차 조회
+        List<ActivitySession> sessions = sessionRepository.findClosedVoteSessions(
+                now.toLocalDate(),
+                SessionStatus.SCHEDULED,
+                TopicMode.VOTE
+        );
+
+        // 회차 당일 오후 3시가 지난 회차만 확정 대상에 포함
+        sessions = sessions.stream()
+                .filter(session -> !now.isBefore(
+                        session.getSessionDate().atTime(TOPIC_VOTE_DEADLINE)
+                ))
+                .toList();
+
+        if (sessions.isEmpty()) {
+            return 0;
+        }
+
+        Set<Long> sessionIds = sessions.stream()
+                .map(ActivitySession::getId)
+                .collect(Collectors.toSet());
+
         Map<Long, List<VoteCount>> votesBySession = voteRepository.countBySessionIds(sessionIds).stream()
                 .collect(Collectors.groupingBy(VoteCount::sessionId));
+
         Map<Long, TopicCandidate> candidates = new HashMap<>();
-        candidateRepository.findAllBySessionIdIn(sessionIds).forEach(c -> candidates.put(c.getId(), c));
+        candidateRepository.findAllBySessionIdIn(sessionIds)
+                .forEach(candidate -> candidates.put(candidate.getId(), candidate));
 
         int confirmed = 0;
+
         for (ActivitySession session : sessions) {
             List<VoteCount> votes = votesBySession.get(session.getId());
-            if (votes == null) continue;
+
+            // 투표가 없으면 주제를 확정하지 않는다.
+            if (votes == null || votes.isEmpty()) {
+                continue;
+            }
+
+            // 득표수가 가장 많은 후보 선택
+            // 동률이면 후보 ID가 더 작은 후보 선택
             VoteCount best = votes.stream()
                     .max(Comparator.comparingLong(VoteCount::count)
-                            .thenComparing(VoteCount::candidateId, Comparator.reverseOrder()))
+                            .thenComparing(
+                                    VoteCount::candidateId,
+                                    Comparator.reverseOrder()
+                            ))
                     .orElse(null);
-            TopicCandidate winner = best == null ? null : candidates.get(best.candidateId());
-            if (winner == null) continue;
+
+            TopicCandidate winner = best == null
+                    ? null
+                    : candidates.get(best.candidateId());
+
+            if (winner == null) {
+                continue;
+            }
+
             session.confirmTopic(winner.getTitle());
             confirmed++;
         }
+
         return confirmed;
     }
 
@@ -443,9 +498,11 @@ public class ActivityService {
     // 부장은 모든 활동의 스터디장 권한
     private void requireManager(Member member, Long activityId) {
         if (member.isLeader()) return;
+
         boolean activityLeader = activityMemberRepository.findByActivityIdAndMemberId(activityId, member.getId())
                 .map(m -> m.getRole() == ActivityRole.LEADER)
                 .orElse(false);
+
         if (!activityLeader) {
             throw error(HttpStatus.FORBIDDEN, "스터디장 또는 부장만 사용할 수 있는 기능입니다.");
         }
@@ -457,17 +514,33 @@ public class ActivityService {
         }
     }
 
-    // 투표/후보 제안 가능 기간: (회차일 - N일) 이상 ~ 회차일 전날까지, 주제 미확정 + 예정 회차
-    private boolean isVotingOpen(Activity activity, ActivitySession session, LocalDate today) {
-        return activity.getTopicMode() == TopicMode.VOTE
-                && session.getStatus() == SessionStatus.SCHEDULED
-                && session.getTopic() == null
-                && !today.isBefore(session.getSessionDate().minusDays(activity.getTopicOpenDaysBefore()))
-                && today.isBefore(session.getSessionDate());
+    // 투표/후보 제안 가능 기간:
+    // 회차 날짜 기준 N일 전 00:00부터 회차 당일 15:00 직전까지
+    private boolean isVotingOpen(
+            Activity activity,
+            ActivitySession session,
+            LocalDateTime now
+    ) {
+        if (activity.getTopicMode() != TopicMode.VOTE
+                || session.getStatus() != SessionStatus.SCHEDULED
+                || session.getTopic() != null) {
+            return false;
+        }
+
+        // 투표 시작일
+        LocalDateTime openAt = session.getSessionDate()
+                .minusDays(activity.getTopicOpenDaysBefore())
+                .atStartOfDay();
+
+        // 회차 당일 오후 3시 마감
+        LocalDateTime deadline = session.getSessionDate()
+                .atTime(TOPIC_VOTE_DEADLINE);
+
+        return !now.isBefore(openAt) && now.isBefore(deadline);
     }
 
     private void requireVotingOpen(Activity activity, ActivitySession session) {
-        if (!isVotingOpen(activity, session, LocalDate.now())) {
+        if (!isVotingOpen(activity, session, LocalDateTime.now())) {
             throw error(HttpStatus.CONFLICT, "투표가 열려 있는 회차가 아닙니다.");
         }
     }
@@ -484,6 +557,7 @@ public class ActivityService {
         if (!majors.isEmpty() && Collections.disjoint(majors, member.getMajors())) {
             throw error(HttpStatus.FORBIDDEN, "대상 전공이 아닙니다.");
         }
+
         Set<Long> generationIds = activity.getTargetGenerationIds();
         if (!generationIds.isEmpty()
                 && (member.getGeneration() == null || !generationIds.contains(member.getGeneration().getId()))) {
@@ -494,9 +568,11 @@ public class ActivityService {
     // 기수는 같은 팀의 기수만 지정 가능 (한 번의 쿼리로 검증)
     private void validateGenerations(Member member, Set<Long> generationIds) {
         if (generationIds.isEmpty()) return;
+
         List<Generation> found = generationRepository.findAllById(generationIds);
         boolean valid = found.size() == generationIds.size()
                 && found.stream().allMatch(g -> g.getTeamId().equals(member.getTeamId()));
+
         if (!valid) {
             throw error(HttpStatus.BAD_REQUEST, "존재하지 않는 기수입니다.");
         }
@@ -513,18 +589,24 @@ public class ActivityService {
 
     private List<LocalDate> sessionDates(LocalDate start, LocalDate end, DayOfWeek day) {
         List<LocalDate> dates = new ArrayList<>();
-        for (LocalDate d = start.with(TemporalAdjusters.nextOrSame(day)); !d.isAfter(end); d = d.plusWeeks(1)) {
+
+        for (LocalDate d = start.with(TemporalAdjusters.nextOrSame(day));
+             !d.isAfter(end);
+             d = d.plusWeeks(1)) {
             dates.add(d);
         }
+
         return dates;
     }
 
     // 인원수는 group by 한 번으로 조회 (활동마다 count 쿼리가 나가지 않게)
     private List<ActivitySummaryResponse> toSummaries(List<Activity> activities) {
         if (activities.isEmpty()) return List.of();
+
         Map<Long, Long> counts = new HashMap<>();
         activityMemberRepository.countByActivityIds(activities.stream().map(Activity::getId).toList())
                 .forEach(c -> counts.put(c.activityId(), c.count()));
+
         return activities.stream()
                 .map(a -> ActivitySummaryResponse.of(a, counts.getOrDefault(a.getId(), 0L)))
                 .toList();
@@ -534,7 +616,10 @@ public class ActivityService {
     private Map<Long, String> memberNames(Set<Long> memberIds) {
         Map<Long, String> names = new HashMap<>();
         if (memberIds.isEmpty()) return names;
-        memberRepository.findAllById(memberIds).forEach(m -> names.put(m.getId(), m.getName()));
+
+        memberRepository.findAllById(memberIds)
+                .forEach(m -> names.put(m.getId(), m.getName()));
+
         return names;
     }
 

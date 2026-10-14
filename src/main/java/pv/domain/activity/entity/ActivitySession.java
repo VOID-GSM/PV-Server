@@ -30,6 +30,8 @@ public class ActivitySession {
     private LocalDate sessionDate;
 
     private LocalTime sessionTime;
+    // 투표 마감 일시
+    private LocalDateTime topicDeadline;
 
     @Column(length = 200)
     private String topic;
