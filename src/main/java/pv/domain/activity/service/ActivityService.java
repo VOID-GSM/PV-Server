@@ -532,6 +532,16 @@ public class ActivityService {
                                 "활동 참여자가 아닙니다."
                         ));
 
+        if (target.getRole() == ActivityRole.LEADER
+                && request.role() != ActivityRole.LEADER
+                && activityMemberRepository.countByActivityIdAndRole(
+                activityId, ActivityRole.LEADER) <= 1) {
+            throw error(
+                    HttpStatus.CONFLICT,
+                    "마지막 스터디장은 역할을 변경할 수 없습니다. 다른 참여자를 스터디장으로 먼저 지정해주세요."
+            );
+        }
+
         target.changeRole(request.role());
     }
 

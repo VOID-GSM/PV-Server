@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pv.domain.activity.dto.query.MemberCount;
 import pv.domain.activity.entity.ActivityMember;
+import pv.domain.activity.entity.ActivityRole;
 
 import java.util.Collection;
 import java.util.List;
@@ -20,6 +21,8 @@ public interface ActivityMemberRepository extends JpaRepository<ActivityMember, 
     boolean existsByActivityIdAndMemberId(Long activityId, Long memberId);
 
     long countByActivityId(Long activityId);
+
+    long countByActivityIdAndRole(Long activityId, ActivityRole role);
 
     @Query("select new pv.domain.activity.dto.query.MemberCount(m.activityId, count(m)) "
             + "from ActivityMember m where m.activityId in :activityIds group by m.activityId")
