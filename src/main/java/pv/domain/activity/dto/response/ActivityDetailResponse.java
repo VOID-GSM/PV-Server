@@ -1,0 +1,32 @@
+package pv.domain.activity.dto.response;
+
+import pv.domain.activity.entity.Activity;
+import pv.domain.activity.entity.TopicMode;
+import pv.domain.member.entity.Major;
+
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Set;
+
+public record ActivityDetailResponse(
+        ActivitySummaryResponse summary,
+        String description,
+        Set<Major> targetMajors,
+        Set<Long> targetGenerationIds,
+        TopicMode topicMode, String topicModeLabel,
+        DayOfWeek repeatDayOfWeek, LocalTime repeatTime,
+        int topicOpenDaysBefore,
+        List<ActivityMemberResponse> members,
+        List<SessionResponse> upcomingSessions
+) {
+    public static ActivityDetailResponse of(Activity a, ActivitySummaryResponse summary,
+                                            List<ActivityMemberResponse> members,
+                                            List<SessionResponse> upcomingSessions) {
+        return new ActivityDetailResponse(summary, a.getDescription(),
+                Set.copyOf(a.getTargetMajors()), Set.copyOf(a.getTargetGenerationIds()),
+                a.getTopicMode(), a.getTopicMode().getLabel(),
+                a.getRepeatDayOfWeek(), a.getRepeatTime(), a.getTopicOpenDaysBefore(),
+                members, upcomingSessions);
+    }
+}
