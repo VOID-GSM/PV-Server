@@ -7,12 +7,11 @@ import pv.domain.member.entity.Major;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.Set;
 
 public record ActivityDetailResponse(
         ActivitySummaryResponse summary,
         String description,
-        Set<Major> targetMajors,
+        List<Major> targetMajors,
         List<GenerationItem> targetGenerations,
         TopicMode topicMode, String topicModeLabel,
         DayOfWeek repeatDayOfWeek, LocalTime repeatTime,
@@ -28,7 +27,7 @@ public record ActivityDetailResponse(
                                             List<ActivityMemberResponse> members,
                                             List<SessionResponse> upcomingSessions) {
         return new ActivityDetailResponse(summary, a.getDescription(),
-                Set.copyOf(a.getTargetMajors()), targetGenerations,
+                a.getTargetMajors().stream().sorted().toList(), targetGenerations,
                 a.getTopicMode(), a.getTopicMode().getLabel(),
                 a.getRepeatDayOfWeek(), a.getRepeatTime(), a.getTopicOpenDaysBefore(),
                 members, upcomingSessions);
