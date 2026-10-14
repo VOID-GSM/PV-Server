@@ -101,11 +101,13 @@ public class CommentService {
     // 피드백 요청 부분
     @Transactional(readOnly = true)
     public List<FeedbackRequestDto.Response> getMyRequests(Long memberId) {
+        getJoinedMember(memberId);
         return feedbackRequestRepository.findByReceiverIdAndCompletedAtIsNullOrderByCreatedAtDesc(memberId)
                 .stream().map(FeedbackRequestDto.Response::from).toList();
     }
 
     public void complete(Long memberId, Long requestId) {
+        getJoinedMember(memberId);
         FeedbackRequest request = feedbackRequestRepository.findById(requestId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "피드백 요청을 찾을 수 없습니다."));
         if (!request.isReceiver(memberId)) {
