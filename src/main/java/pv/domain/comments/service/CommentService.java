@@ -12,9 +12,13 @@ import pv.domain.comments.entity.FeedbackRequest;
 import pv.domain.comments.entity.TargetType;
 import pv.domain.comments.repository.CommentRepository;
 import pv.domain.comments.repository.FeedbackRequestRepository;
+import pv.domain.member.entity.Member;
 import pv.global.exception.CustomException;
+import pv.domain.member.entity.MemberStatus;
+import pv.domain.member.repository.MemberRepository;
 
 import java.util.List;
+import java.util.HashSet;
 
 @Service
 @Transactional
@@ -22,22 +26,26 @@ import java.util.List;
 public class CommentService {
     private final CommentRepository commentRepository;
     private final FeedbackRequestRepository feedbackRequestRepository;
+    private final MemberRepository memberRepository;
 
     // 댓글 부분
     @Transactional(readOnly = true)
-    public List<CommentDto.Response> getComments(TargetType type, Long targetId) {
-        return commentRepository.findByTargetTypeAndTargetIdOrderByCreatedAtAsc(type, targetId)
+    public List<CommentDto.Response> getComments(Long memberId, TargetType type, Long targetId) {
+        Member me = getJoinedMember(memberId);
+        return commentRepository.findByTeamIdAndTargetTypeAndTargetIdOrderByCreatedAtAsc(me.getTeamId(), type, targetId)
                 .stream().map(CommentDto.Response::from).toList();
     }
 
     public CommentDto.Response create(Long memberId, CommentDto.Create req) {
+        Member me = getJoinedMember(memberId);
         Anchor anchor = toAnchor(req.targetType(), req.targetId(), req.anchor());
         Comment saved = commentRepository.save(
-                Comment.create(req.targetType(), req.targetId(), memberId, req.content(), anchor));
+                Comment.create(me.getTeamId(), req.targetType(), req.targetId(), memberId, req.content(), anchor));
         return CommentDto.Response.from(saved);
     }
 
     public CommentDto.Response update(Long memberId, Long commentId, CommentDto.Update req) {
+        getJoinedMember(memberId);
         Comment comment = getComment(commentId);
         if (!comment.isAuthor(memberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 댓글만 수정할 수 있습니다.");
@@ -50,21 +58,56 @@ public class CommentService {
 
     // Member 머지 후 관리자 삭제 허용 재구현 할 예정
     public void delete(Long memberId, Long commentId) {
+        Member me = getJoinedMember(memberId);
         Comment comment = getComment(commentId);
-        if (!comment.isAuthor(memberId)) {
-            throw new CustomException(HttpStatus.FORBIDDEN, "삭제 권한이 없습니다.");
-        }
+        boolean leaderOfTeam = me.isLeader() && me.getTeamId().equals(comment.getTeamId());
+             if (!comment.isAuthor(memberId) && !leaderOfTeam) {
+                 throw new CustomException(HttpStatus.FORBIDDEN, "댓글을 삭제할 권한이 없습니다.");
+             }
         commentRepository.delete(comment);
+    }
+
+    public List<FeedbackRequestDto.Response> requestFeedback(Long memberId, FeedbackRequestDto.Create req) {
+        Member me = getJoinedMember(memberId);
+        Long teamId = me.getTeamId();
+        int myGen = me.getGeneration().getNumber();
+
+        List<Long> receivers = switch (req.scope()) {
+            case MEMBERS -> req.memberIds() == null || req.memberIds().isEmpty()
+                    ? List.of()
+                    : memberRepository.findJoinedIds(teamId, req.memberIds());
+            case SENIOR_ALL -> memberRepository.findSeniorIds(teamId, myGen);
+            case SENIOR_SAME_MAJOR -> me.getMajors().isEmpty()
+                    ? List.of()
+                    : memberRepository.findSeniorIdsByMajors(teamId, myGen, me.getMajors());
+        };
+
+        var alreadyPending = new HashSet<>(
+                feedbackRequestRepository.findPendingReceiverIds(req.targetType(), req.targetId()));
+
+        List<FeedbackRequest> requests = receivers.stream()
+                .distinct()
+                .filter(id -> !id.equals(memberId) && !alreadyPending.contains(id))
+                .map(id -> FeedbackRequest.create(req.targetType(), req.targetId(), memberId, id, req.message()))
+                .toList();
+
+        if (requests.isEmpty()) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "요청을 보낼 대상이 없습니다.");
+        }
+        return feedbackRequestRepository.saveAll(requests).stream()
+                .map(FeedbackRequestDto.Response::from).toList();
     }
 
     // 피드백 요청 부분
     @Transactional(readOnly = true)
     public List<FeedbackRequestDto.Response> getMyRequests(Long memberId) {
+        getJoinedMember(memberId);
         return feedbackRequestRepository.findByReceiverIdAndCompletedAtIsNullOrderByCreatedAtDesc(memberId)
                 .stream().map(FeedbackRequestDto.Response::from).toList();
     }
 
     public void complete(Long memberId, Long requestId) {
+        getJoinedMember(memberId);
         FeedbackRequest request = feedbackRequestRepository.findById(requestId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "피드백 요청을 찾을 수 없습니다."));
         if (!request.isReceiver(memberId)) {
@@ -87,5 +130,14 @@ public class CommentService {
     private Comment getComment(Long id) {
         return commentRepository.findById(id)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다."));
+    }
+
+    private Member getJoinedMember(Long id) {
+        Member m = memberRepository.findById(id)
+                .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "회원을 찾을 수 없습니다."));
+        if (m.getStatus() != MemberStatus.JOINED) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "가입 승인 후 이용할 수 있습니다.");
+        }
+        return m;
     }
 }

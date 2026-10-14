@@ -21,12 +21,15 @@ import pv.global.exception.CustomException;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "comments", indexes = @Index(name = "idx_comments_target", columnList = "target_type, target_id"))
+@Table(name = "comments", indexes = @Index(name = "idx_comments_target", columnList = "team_id, target_type, target_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Comment {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
+    private Long teamId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -50,9 +53,10 @@ public class Comment {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    public static Comment create(TargetType type, Long targetId, Long authorId, String content, Anchor anchor) {
+    public static Comment create(Long teamId, TargetType type, Long targetId, Long authorId, String content, Anchor anchor) {
         validateContent(content);
         Comment c = new Comment();
+        c.teamId = teamId;
         c.targetType = type;
         c.targetId = targetId;
         c.authorId = authorId;
