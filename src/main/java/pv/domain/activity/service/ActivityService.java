@@ -16,6 +16,8 @@ import pv.domain.member.entity.MemberStatus;
 import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
 import pv.global.exception.CustomException;
+import java.time.Clock;
+import java.time.ZoneId;
 
 import java.time.LocalDateTime;
 import java.time.DayOfWeek;
@@ -29,6 +31,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ActivityService {
+
+    private final Clock clock;
 
     // 반복 회차를 자동 생성하는 최대 기간 (회차 폭증 방지)
     private static final long MAX_PERIOD_DAYS = 366;
@@ -178,8 +182,8 @@ public class ActivityService {
                         .collect(Collectors.toSet())
         );
 
-        LocalDate today = LocalDate.now();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now(clock);
+        LocalDateTime now = LocalDateTime.now(clock);
 
         List<SessionResponse> upcoming =
                 sessionRepository
@@ -530,7 +534,7 @@ public class ActivityService {
         Member member = getMember(loginMemberId);
         Activity activity = getActivityOf(member, activityId);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
 
         return sessionRepository
                 .findAllByActivityIdOrderBySessionNoAsc(activityId)
@@ -791,7 +795,7 @@ public class ActivityService {
     // 동률이면 먼저 제안된 후보를 선택한다.
     @Transactional
     public int confirmClosedTopics() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
 
         // 오늘 날짜까지의 미확정 투표형 회차를 조회한다.
         List<ActivitySession> sessions =
