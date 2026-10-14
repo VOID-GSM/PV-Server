@@ -13,18 +13,22 @@ public record ActivityDetailResponse(
         ActivitySummaryResponse summary,
         String description,
         Set<Major> targetMajors,
-        Set<Long> targetGenerationIds,
+        List<GenerationItem> targetGenerations,
         TopicMode topicMode, String topicModeLabel,
         DayOfWeek repeatDayOfWeek, LocalTime repeatTime,
         int topicOpenDaysBefore,
         List<ActivityMemberResponse> members,
         List<SessionResponse> upcomingSessions
 ) {
+    public record GenerationItem(Long id, Integer number) {
+    }
+
     public static ActivityDetailResponse of(Activity a, ActivitySummaryResponse summary,
+                                            List<GenerationItem> targetGenerations,
                                             List<ActivityMemberResponse> members,
                                             List<SessionResponse> upcomingSessions) {
         return new ActivityDetailResponse(summary, a.getDescription(),
-                Set.copyOf(a.getTargetMajors()), Set.copyOf(a.getTargetGenerationIds()),
+                Set.copyOf(a.getTargetMajors()), targetGenerations,
                 a.getTopicMode(), a.getTopicMode().getLabel(),
                 a.getRepeatDayOfWeek(), a.getRepeatTime(), a.getTopicOpenDaysBefore(),
                 members, upcomingSessions);

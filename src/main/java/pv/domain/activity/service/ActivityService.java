@@ -92,6 +92,11 @@ public class ActivityService {
 
         validatePeriod(request.startDate(), request.endDate());
 
+        Set<Major> majors =
+                request.targetMajors() == null
+                        ? Set.of()
+                        : request.targetMajors();
+
         Set<Long> generationIds =
                 request.targetGenerationIds() == null
                         ? Set.of()
@@ -123,7 +128,7 @@ public class ActivityService {
                         request.type(),
                         request.name(),
                         request.description(),
-                        request.targetMajors(),
+                        majors,
                         generationIds,
                         request.capacity(),
                         request.startDate(),
@@ -199,9 +204,20 @@ public class ActivityService {
                         ))
                         .toList();
 
+        List<ActivityDetailResponse.GenerationItem> generations =
+                generationRepository.findAllById(activity.getTargetGenerationIds())
+                        .stream()
+                        .sorted(Comparator.comparing(Generation::getNumber))
+                        .map(g -> new ActivityDetailResponse.GenerationItem(
+                                g.getId(),
+                                g.getNumber()
+                        ))
+                        .toList();
+
         return ActivityDetailResponse.of(
                 activity,
                 ActivitySummaryResponse.of(activity, members.size()),
+                generations,
                 members.stream()
                         .map(m -> ActivityMemberResponse.of(
                                 m,
@@ -584,7 +600,7 @@ public class ActivityService {
                 isVotingOpen(
                         activity,
                         session,
-                        LocalDateTime.now()
+                        LocalDateTime.now(clock)
                 )
         );
     }
@@ -1057,7 +1073,7 @@ public class ActivityService {
         if (!isVotingOpen(
                 activity,
                 session,
-                LocalDateTime.now()
+                LocalDateTime.now(clock)
         )) {
             throw error(
                     HttpStatus.CONFLICT,
