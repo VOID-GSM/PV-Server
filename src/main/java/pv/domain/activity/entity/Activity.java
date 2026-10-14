@@ -18,6 +18,7 @@ import java.util.Set;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(indexes = @Index(columnList = "team_id"))
 public class Activity {
 
     @Id
@@ -126,8 +127,6 @@ public class Activity {
             this.targetGenerationIds.addAll(targetGenerationIds);
         }
         if (capacity != null) this.capacity = capacity;
-        if (startDate != null) this.startDate = startDate;
-        if (endDate != null) this.endDate = endDate;
     }
 
     public void changeStatus(ActivityStatus status) {

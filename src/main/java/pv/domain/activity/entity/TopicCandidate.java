@@ -11,6 +11,9 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(
+        uniqueConstraints = @UniqueConstraint(columnNames = {"session_id", "title"}),
+        indexes = @Index(columnList = "session_id"))
 public class TopicCandidate {
 
     @Id
