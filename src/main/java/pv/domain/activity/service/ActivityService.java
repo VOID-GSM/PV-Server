@@ -17,7 +17,7 @@ import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
 import pv.global.exception.CustomException;
 import java.time.Clock;
-import java.time.ZoneId;
+import java.util.Optional;
 
 import java.time.LocalDateTime;
 import java.time.DayOfWeek;
@@ -366,8 +366,7 @@ public class ActivityService {
                 .toList();
     }
 
-    // 승인된 신청이면 참여자에서도 빠지고 내 투표도 함께 삭제
-    // 스터디장은 역할 변경 후에만 취소 가능
+    // 참여 신청 취소 또는 활동 나가기
     @Transactional
     public void cancelMyApplication(
             Long loginMemberId,
@@ -377,39 +376,50 @@ public class ActivityService {
 
         getActivityForUpdate(member, activityId);
 
-        ActivityApplication application =
-                applicationRepository
-                        .findByActivityIdAndMemberId(
-                                activityId,
-                                member.getId()
-                        )
-                        .orElseThrow(() -> error(
-                                HttpStatus.NOT_FOUND,
-                                "존재하지 않는 참여 신청입니다."
-                        ));
-
-        activityMemberRepository
-                .findByActivityIdAndMemberId(
+        // 활동 멤버 조회
+        Optional<ActivityMember> activityMember =
+                activityMemberRepository.findByActivityIdAndMemberId(
                         activityId,
                         member.getId()
-                )
-                .ifPresent(am -> {
-                    if (am.getRole() == ActivityRole.LEADER) {
-                        throw error(
-                                HttpStatus.CONFLICT,
-                                "스터디장은 역할을 변경한 뒤 취소할 수 있습니다."
-                        );
-                    }
+                );
 
-                    activityMemberRepository.delete(am);
+        // 참여 신청서 조회 (없을 수도 있음)
+        Optional<ActivityApplication> application =
+                applicationRepository.findByActivityIdAndMemberId(
+                        activityId,
+                        member.getId()
+                );
 
-                    voteRepository.deleteAllByActivityIdAndMemberId(
-                            activityId,
-                            member.getId()
-                    );
-                });
+        // 멤버도 신청서도 없다면 취소할 대상이 없음
+        if (activityMember.isEmpty() && application.isEmpty()) {
+            throw error(
+                    HttpStatus.NOT_FOUND,
+                    "존재하지 않는 참여 신청입니다."
+            );
+        }
 
-        applicationRepository.delete(application);
+        // 활동 멤버라면 활동에서 나가기
+        activityMember.ifPresent(am -> {
+            // 스터디장은 역할을 변경한 뒤에만 나갈 수 있음
+            if (am.getRole() == ActivityRole.LEADER) {
+                throw error(
+                        HttpStatus.CONFLICT,
+                        "스터디장은 역할을 변경한 뒤 취소할 수 있습니다."
+                );
+            }
+
+            // 활동 멤버 삭제
+            activityMemberRepository.delete(am);
+
+            // 해당 활동에서 내가 진행한 투표 삭제
+            voteRepository.deleteAllByActivityIdAndMemberId(
+                    activityId,
+                    member.getId()
+            );
+        });
+
+        // 신청서가 존재하는 경우에만 삭제
+        application.ifPresent(applicationRepository::delete);
     }
 
     @Transactional
