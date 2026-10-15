@@ -47,7 +47,7 @@ public class InterviewController {
     }
 
     @GetMapping("/random")
-    public List<QuestionResponse> create(
+    public List<QuestionResponse> random(
             @RequestParam(required = false) InterviewQuestion.Major major,
             @RequestParam(required = false) InterviewCategory category,
             @RequestParam(defaultValue = "1") @Min(1) @Max(20) int count
@@ -72,8 +72,8 @@ public class InterviewController {
             @RequestBody @Valid AnswerRequest req
     ) {
         AnswerResponse response = interviewService.createAnswer(memberId, questionId, req);
-            return ResponseEntity
-                    .created(URI.create("/interviews/questions/" + questionId + "/answers/" + response.id()))
-                    .body(response);
+        return ResponseEntity
+                .created(URI.create("/interviews/questions/" + questionId + "/answers"))
+                .body(response);
     }
 }
