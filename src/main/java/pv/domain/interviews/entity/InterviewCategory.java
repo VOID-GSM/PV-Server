@@ -1,0 +1,14 @@
+package pv.domain.interviews.entity;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public enum InterviewCategory {
+    PERSONALITY("인성"),
+    TECH("기술"),
+    PROJECT("프로젝트");
+
+    private final String label;
+}
