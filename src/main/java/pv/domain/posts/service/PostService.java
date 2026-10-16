@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pv.domain.activity.entity.ActivitySession;
 import pv.domain.activity.repository.ActivityMemberRepository;
 import pv.domain.activity.repository.ActivitySessionRepository;
+import pv.domain.interviews.repository.InterviewQuestionRepository;
 import pv.domain.member.entity.Member;
 import pv.domain.member.entity.MemberStatus;
 import pv.domain.member.repository.MemberRepository;
@@ -33,6 +34,7 @@ public class PostService {
     private final MemberRepository memberRepository;
     private final ActivitySessionRepository activitySessionRepository;
     private final ActivityMemberRepository activityMemberRepository;
+    private final InterviewQuestionRepository interviewQuestionRepository;
 
     public Page<PostSummaryResponse> getPosts(PostSearchCondition cond, Long currentMemberId, Pageable pageable) {
         findJoinedMember(currentMemberId);
@@ -56,6 +58,9 @@ public class PostService {
                     .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "회차가 없습니다."));
             activityId = session.getActivityId();
             validateParticipant(activityId, member);
+        }
+        if (req.questionId() != null && !interviewQuestionRepository.existsById(req.questionId())) {
+            throw new CustomException(HttpStatus.NOT_FOUND, "면접 질문이 없습니다.");
         }
         Post post = Post.create(
                 member.getId(), 
