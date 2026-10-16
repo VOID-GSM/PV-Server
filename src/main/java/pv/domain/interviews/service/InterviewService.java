@@ -94,6 +94,17 @@ public class InterviewService {
         }
     }
 
+    @Transactional
+    public void updateAnswer(Long memberId, Long questionId, Long answerId, AnswerRequest req) {
+        InterviewAnswer answer = answerRepository.findById(answerId)
+                .filter(a -> a.belongsTo(questionId))
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "답변을 찾을 수 없습니다."));
+        if (!answer.isWrittenBy(memberId)) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "본인 답변만 수정할 수 있습니다.");
+        }
+        answer.updateContent(req.content());
+    }
+
     public List<QuestionResponse> getRandom(Major major, InterviewCategory category, int count) {
         if (count < 1 || count > MAX_RANDOM_COUNT) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "질문 개수는 1~" + MAX_RANDOM_COUNT + "개 사이여야 합니다.");

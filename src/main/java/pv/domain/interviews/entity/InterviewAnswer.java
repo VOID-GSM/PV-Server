@@ -52,4 +52,16 @@ public class InterviewAnswer {
         this.member = Objects.requireNonNull(member, "회원은 필수입니다.");
         this.content = Objects.requireNonNull(content, "답변 내용은 필수입니다.");
     }
+
+    public void updateContent(String content) {
+        this.content = Objects.requireNonNull(content, "답변 내용은 필수입니다.");
+    }
+
+    public boolean isWrittenBy(Long memberId) {
+        return this.member.getId().equals(memberId);
+    }
+
+    public boolean belongsTo(Long questionId) {
+        return this.question.getId().equals(questionId);
+    }
 }
