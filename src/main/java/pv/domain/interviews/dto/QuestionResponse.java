@@ -2,14 +2,14 @@ package pv.domain.interviews.dto;
 
 import pv.domain.interviews.entity.InterviewCategory;
 import pv.domain.interviews.entity.InterviewQuestion;
-import pv.domain.interviews.entity.InterviewQuestion;
+import pv.domain.member.entity.Major;
 
 import java.time.LocalDateTime;
 
 public record QuestionResponse(
         Long id,
         String content,
-        InterviewQuestion.Major major,
+        Major major,
         InterviewCategory category,
         LocalDateTime createdAt
 ) {

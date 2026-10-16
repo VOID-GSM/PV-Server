@@ -19,8 +19,8 @@ import pv.domain.interviews.dto.QuestionCreateRequest;
 import pv.domain.interviews.dto.QuestionDetailResponse;
 import pv.domain.interviews.dto.QuestionResponse;
 import pv.domain.interviews.entity.InterviewCategory;
-import pv.domain.interviews.entity.InterviewQuestion;
 import pv.domain.interviews.service.InterviewService;
+import pv.domain.member.entity.Major;
 
 import java.net.URI;
 import java.util.List;
@@ -33,7 +33,7 @@ public class InterviewController {
 
     @GetMapping
     public List<QuestionResponse> list(
-            @RequestParam(required = false) InterviewQuestion.Major major,
+            @RequestParam(required = false) Major major,
             @RequestParam(required = false) InterviewCategory category
     ) {
         return interviewService.getQuestions(major, category);
@@ -50,7 +50,7 @@ public class InterviewController {
 
     @GetMapping("/random")
     public List<QuestionResponse> random(
-            @RequestParam(required = false) InterviewQuestion.Major major,
+            @RequestParam(required = false) Major major,
             @RequestParam(required = false) InterviewCategory category,
             @RequestParam(defaultValue = "1") @Min(1) @Max(20) int count
     ) {

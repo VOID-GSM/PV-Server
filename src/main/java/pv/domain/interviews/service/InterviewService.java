@@ -19,6 +19,7 @@ import pv.domain.member.entity.Member;
 import pv.global.exception.CustomException;
 import pv.domain.interviews.dto.AnswerRequest;
 import pv.domain.member.repository.MemberRepository;
+import pv.domain.member.entity.Major;
 
 import java.util.List;
 
@@ -31,7 +32,7 @@ public class InterviewService {
     private final InterviewAnswerRepository answerRepository;
     private final MemberRepository memberRepository;
 
-    public List<QuestionResponse> getQuestions(InterviewQuestion.Major major, InterviewCategory category) {
+    public List<QuestionResponse> getQuestions(Major major, InterviewCategory category) {
         return questionRepository.search(major, category).stream().map(QuestionResponse::from).toList();
     }
 
@@ -56,7 +57,7 @@ public class InterviewService {
     }
 
     @Transactional
-    public InterviewQuestion registerFromActivity(String content, InterviewQuestion.Major major, InterviewCategory category) {
+    public InterviewQuestion registerFromActivity(String content, Major major, InterviewCategory category) {
         String normalized = content.strip();
         return questionRepository.findByContent(normalized)
                 .orElseGet(() -> questionRepository.save(new InterviewQuestion(normalized, major, category)));
@@ -93,7 +94,7 @@ public class InterviewService {
         }
     }
 
-    public List<QuestionResponse> getRandom(InterviewQuestion.Major major, InterviewCategory category, int count) {
+    public List<QuestionResponse> getRandom(Major major, InterviewCategory category, int count) {
         if (count < 1 || count > MAX_RANDOM_COUNT) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "질문 개수는 1~" + MAX_RANDOM_COUNT + "개 사이여야 합니다.");
         }
