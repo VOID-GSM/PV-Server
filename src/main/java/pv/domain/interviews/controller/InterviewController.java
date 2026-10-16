@@ -41,9 +41,11 @@ public class InterviewController {
 
     @PostMapping
     public ResponseEntity<Void> create(
+            @AuthenticationPrincipal Long memberId,
             @RequestBody @Valid QuestionCreateRequest req
     ) {
-        return ResponseEntity.created(URI.create("/interviews/questions/" + interviewService.create(req))).build();
+        Long id = interviewService.create(memberId, req);
+        return ResponseEntity.created(URI.create("/interviews/questions/" + id)).build();
     }
 
     @GetMapping("/random")

@@ -71,6 +71,10 @@ public class Member {
                 && (roles.contains(Role.LEADER) || roles.contains(required));
     }
 
+    public boolean isJoined() {
+        return this.status == MemberStatus.JOINED;
+    }
+
     public void approve() {
         this.status = MemberStatus.JOINED;
     }
