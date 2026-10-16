@@ -12,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import pv.domain.member.entity.Major;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -21,8 +22,6 @@ import java.util.Objects;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InterviewQuestion {
-
-    public enum Major { FRONTEND, BACKEND, DEVOPS, DESIGN }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
