@@ -33,7 +33,7 @@ public class InterviewAnswer {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "question_id")
+    @JoinColumn(name = "question_id", nullable = false)
     private InterviewQuestion question;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
