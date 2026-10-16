@@ -22,7 +22,9 @@ import pv.domain.posts.dto.PostSummaryResponse;
 import pv.domain.posts.dto.PostUpdateRequest;
 import pv.domain.posts.entity.Post;
 import pv.domain.posts.repository.PostRepository;
+import org.springframework.data.domain.Sort;
 
+import java.util.Set;
 import static pv.domain.posts.repository.PostSpecs.*;
 import java.util.List;
 
@@ -36,7 +38,10 @@ public class PostService {
     private final ActivityMemberRepository activityMemberRepository;
     private final InterviewQuestionRepository interviewQuestionRepository;
 
+    private static final Set<String> ALLOWED_SORT_PROPERTIES = Set.of("createdAt", "id");
+
     public Page<PostSummaryResponse> getPosts(PostSearchCondition cond, Long currentMemberId, Pageable pageable) {
+        validateSort(pageable.getSort());
         findJoinedMember(currentMemberId);
         if (cond.from() != null && cond.to() != null && cond.from().isAfter(cond.to())) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "from이 to보다 늦습니다.");
@@ -142,6 +147,15 @@ public class PostService {
             return Long.parseLong(author);
         } catch (NumberFormatException e) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "author는 'me' 또는 숫자 id 여야합니다.");
+        }
+
+    }
+
+    private void validateSort(Sort sort) {
+        for (Sort.Order order : sort) {
+            if (!ALLOWED_SORT_PROPERTIES.contains(order.getProperty())) {
+                throw new CustomException(HttpStatus.BAD_REQUEST, "정렬은 createdAt, id만 가능합니다.");
+            }
         }
     }
 }
