@@ -18,8 +18,6 @@ public interface ActivityMemberRepository extends JpaRepository<ActivityMember, 
 
     Optional<ActivityMember> findByActivityIdAndMemberId(Long activityId, Long memberId);
 
-    boolean existsByActivityIdAndMemberId(Long activityId, Long memberId);
-
     long countByActivityId(Long activityId);
 
     long countByActivityIdAndRole(Long activityId, ActivityRole role);
@@ -31,4 +29,15 @@ public interface ActivityMemberRepository extends JpaRepository<ActivityMember, 
     @Modifying(flushAutomatically = true)
     @Query("delete from ActivityMember m where m.activityId = :activityId")
     void deleteAllByActivityId(@Param("activityId") Long activityId);
+
+    boolean existsByActivityIdAndMemberId(Long activityId, Long memberId);
+
+    boolean existsByActivityIdAndMemberIdAndRole(Long activityId, Long memberId, ActivityRole role);
+
+    @Query("""
+            select am.activityId from ActivityMember am
+            where am.memberId = :memberId and am.role = :role
+            """)
+    List<Long> findActivityIdsByMemberIdAndRole(@Param("memberId") Long memberId,
+                                                @Param("role") ActivityRole role);
 }
