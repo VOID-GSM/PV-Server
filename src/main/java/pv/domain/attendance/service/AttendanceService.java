@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pv.domain.activity.repository.ActivityMemberRepository;
 import pv.domain.attendance.dto.StatusCount;
 import pv.domain.attendance.dto.request.BulkAttendanceRequest;
 import pv.domain.attendance.dto.request.CheckInRequest;
@@ -12,12 +13,10 @@ import pv.domain.attendance.dto.response.AttendanceStatsResponse;
 import pv.domain.attendance.entity.Attendance;
 import pv.domain.attendance.entity.AttendanceSession;
 import pv.domain.attendance.entity.AttendanceStatus;
-import pv.domain.attendance.repository.AbsenceRepository;
 import pv.domain.attendance.repository.AttendanceSessionRepository;
 import pv.global.exception.CustomException;
 import pv.domain.attendance.repository.AttendanceRepository;
 
-import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +31,21 @@ public class AttendanceService {
     private final AttendanceSessionRepository sessionRepository;
     private final AttendanceRepository attendanceRepository;
     private final AttendanceAuthorizer authorizer;
+    private final ActivityMemberRepository activityMemberRepository;
+
+    @Transactional
+    public void openSession(Long sessionId, Long activityId, String checkInCode,
+                            LocalDateTime opensAt, LocalDateTime closesAt) {
+        if (sessionRepository.existsById(sessionId)) {
+            throw new CustomException(HttpStatus.CONFLICT, "이미 출석이 생성된 회차입니다.");
+        }
+        sessionRepository.save(new AttendanceSession(sessionId, activityId, checkInCode, opensAt, closesAt));
+
+        List<Attendance> attendances = activityMemberRepository.findMemberIdsByActivityId(activityId).stream()
+                .map(memberId -> new Attendance(sessionId, activityId, memberId))
+                .toList();
+        attendanceRepository.saveAll(attendances);
+    }
 
     @Transactional
     public AttendanceResponse checkIn(Long sessionId, Long memberId, CheckInRequest req) {
@@ -89,6 +103,8 @@ public class AttendanceService {
 
     @Transactional
     public int closeSession(Long sessionId) {
+        AttendanceSession session = getSession(sessionId);
+        session.close();
         return attendanceRepository.bulkChangeStatus(sessionId, AttendanceStatus.PENDING, AttendanceStatus.ABSENT);
     }
 

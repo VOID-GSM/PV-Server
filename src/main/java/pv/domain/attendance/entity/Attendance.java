@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import pv.global.exception.CustomException;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "attendance",
@@ -43,6 +44,12 @@ public class Attendance {
     private AttendanceStatus status = AttendanceStatus.PENDING;
 
     private LocalDateTime checkedAt;
+
+    public Attendance(Long sessionId, Long activityId, Long memberId) {
+        this.sessionId = Objects.requireNonNull(sessionId);
+        this.activityId = Objects.requireNonNull(activityId);
+        this.memberId = Objects.requireNonNull(memberId);
+    }
 
     public void checkIn(LocalDateTime now) {
         if (status != AttendanceStatus.PENDING) {

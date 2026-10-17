@@ -45,4 +45,11 @@ public class AttendanceSession {
     public boolean matchesCode(String code) {
         return checkInCode == null || checkInCode.equals(code);
     }
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean closed = false;
+
+    public void close() {
+        this.closed = true;
+    }
 }
