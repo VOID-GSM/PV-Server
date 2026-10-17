@@ -58,17 +58,21 @@ public class Absence {
         this.reason = reason;
     }
 
-    public void approve(Long reviewerId) {
-        review(AbsenceStatus.APPROVED, reviewerId, null);
+    public void approve(Long reviewerId, LocalDateTime now) {
+        review(AbsenceStatus.APPROVED, reviewerId, null, now);
     }
 
-    public void review(AbsenceStatus next, Long reviewerId, String comment) {
+    public void reject(Long reviewerId, String comment, LocalDateTime now) {
+        review(AbsenceStatus.REJECTED, reviewerId, comment, now);
+    }
+
+    public void review(AbsenceStatus next, Long reviewerId, String comment, LocalDateTime now) {
         if (status != AbsenceStatus.REQUESTED) {
             throw new CustomException(HttpStatus.CONFLICT, "이미 처리된 불참 요청입니다.");
         }
         this.status = next;
         this.reviewerId = reviewerId;
         this.rejectComment = comment;
-        this.reviewedAt = LocalDateTime.now();
+        this.reviewedAt = now;
     }
 }

@@ -52,8 +52,8 @@ public class Attendance {
         this.checkedAt = now;
     }
 
-    public void changeStatus(AttendanceStatus status) {
+    public void changeStatus(AttendanceStatus status, LocalDateTime now) {
         this.status = status;
-        this.checkedAt = status == AttendanceStatus.PRESENT ? LocalDateTime.now() : null;
+        this.checkedAt = status == AttendanceStatus.PRESENT ? now : null;
     }
 }
