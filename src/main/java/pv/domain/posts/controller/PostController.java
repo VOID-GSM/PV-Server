@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -39,7 +40,7 @@ public class PostController {
     public ResponseEntity<Page<PostSummaryResponse>> getPosts(
             @Valid @ModelAttribute PostSearchCondition cond,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)Pageable pageable,
-            @RequestAttribute("memberId") Long memberId
+            @AuthenticationPrincipal Long memberId
             ) {
         return ResponseEntity.ok(postService.getPosts(cond, memberId, pageable));
     }
@@ -47,7 +48,7 @@ public class PostController {
     @PostMapping
     public ResponseEntity<PostResponse> create(
             @Valid @RequestBody PostCreateRequest req,
-            @RequestAttribute("memberId") Long memberId
+            @AuthenticationPrincipal Long memberId
     ) {
         PostResponse res = postService.create(req, memberId);
         return ResponseEntity.created(URI.create("/posts/" + res.id())).body(res);
@@ -56,7 +57,7 @@ public class PostController {
     @GetMapping("/compare")
     public ResponseEntity<List<PostResponse>> compare(
             @Valid @ModelAttribute PostCompareCondition cond,
-            @RequestAttribute("memberId") Long memberId
+            @AuthenticationPrincipal Long memberId
     ) {
         return ResponseEntity.ok(postService.compare(cond.sessionId(), cond.questionId(), memberId));
     }
@@ -64,7 +65,7 @@ public class PostController {
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponse> getPost(
             @PathVariable Long postId,
-            @RequestAttribute("memberId") Long memberId
+            @AuthenticationPrincipal Long memberId
     ) {
         return ResponseEntity.ok(postService.getPost(postId, memberId));
     }
@@ -73,7 +74,7 @@ public class PostController {
     public ResponseEntity<PostResponse> update(
             @PathVariable Long postId,
             @Valid @RequestBody PostUpdateRequest req,
-            @RequestAttribute("memberId") Long memberId
+            @AuthenticationPrincipal Long memberId
     ) {
         return ResponseEntity.ok(postService.update(postId, req, memberId));
     }
@@ -81,7 +82,7 @@ public class PostController {
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long postId,
-            @RequestAttribute("memberId") Long memberId
+            @AuthenticationPrincipal Long memberId
     ) {
         postService.delete(postId, memberId);
         return ResponseEntity.noContent().build();

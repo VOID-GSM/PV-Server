@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record PostCreateRequest(
-        Long activityId,
         Long sessionId,
         Long questionId,
 
