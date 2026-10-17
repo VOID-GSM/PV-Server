@@ -40,4 +40,7 @@ public interface ActivityMemberRepository extends JpaRepository<ActivityMember, 
             """)
     List<Long> findActivityIdsByMemberIdAndRole(@Param("memberId") Long memberId,
                                                 @Param("role") ActivityRole role);
+
+    @Query("select am.memberId from ActivityMember am where am.activityId = :activityId")
+    List<Long> findMemberIdsByActivityId(@Param("activityId") Long activityId);
 }
