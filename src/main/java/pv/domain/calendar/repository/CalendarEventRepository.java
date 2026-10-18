@@ -41,4 +41,22 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
                                       @Param("from") Instant from,
                                       @Param("to") Instant to,
                                       @Param("deadline") EventType deadline);
+
+    @Query("""
+        select e from CalendarEvent e
+        where e.startsAt < :to
+          and (e.endsAt > :from or e.startsAt >= :from)
+          and (
+               (e.type = :personal and e.ownerId = :memberId)
+            or e.boardId in :boardIds
+            or e.activityId in :activityIds
+          )
+        order by e.startsAt
+        """)
+    List<CalendarEvent> findCalendar(@Param("memberId") Long memberId,
+                                     @Param("from") Instant from,
+                                     @Param("to") Instant to,
+                                     @Param("boardIds") Collection<Long> boardIds,
+                                     @Param("activityIds") Collection<Long> activityIds,
+                                     @Param("personal") EventType personal);
 }
