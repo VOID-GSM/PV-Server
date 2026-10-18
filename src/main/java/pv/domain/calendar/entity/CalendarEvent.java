@@ -22,8 +22,10 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "calendar_event",
-    indexes = @Index(name = "idx_calendar_event_owner_starts",
-    columnList = "owner_Id, starts_at"))
+        indexes = {@Index(name = "idx_calendar_event_owner_starts", columnList = "owner_id, starts_at"),
+                @Index(name = "idx_calendar_event_board_starts", columnList = "board_id, starts_at"),
+                @Index(name = "idx_calendar_event_activity_starts", columnList = "activity_id, starts_at")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CalendarEvent {
@@ -52,6 +54,12 @@ public class CalendarEvent {
 
     @Column(name = "owner_id")
     private Long ownerId;
+
+    @Column(name = "board_id")
+    private Long boardId;
+
+    @Column(name = "activity_id")
+    private Long activityId;
 
     @CreationTimestamp
     @Column(updatable = false)
