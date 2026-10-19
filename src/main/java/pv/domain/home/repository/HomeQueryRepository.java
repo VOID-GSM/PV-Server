@@ -9,7 +9,6 @@ import pv.domain.activity.entity.TopicMode;
 import pv.domain.board.entity.BoardStatus;
 import pv.domain.attendance.dto.StatusCount;
 import pv.domain.attendance.entity.AttendanceStatus;
-import pv.domain.board.entity.BoardStatus;
 import pv.domain.member.entity.MemberStatus;
 
 import java.time.LocalDate;
@@ -22,7 +21,7 @@ public class HomeQueryRepository {
 
     public List<SessionTodoRow> findTopicInputCandidates(Long memberId, LocalDate today) {
         return em.createQuery("""
-                        select new pv.domain.home.dto.SessionTodoRow(
+                        select new pv.domain.home.repository.SessionTodoRow(
                             s.id, a.name, s.sessionDate, a.topicOpenDaysBefore)
                         from ActivitySession s, Activity a, ActivityMember am
                         where a.id = s.activityId
