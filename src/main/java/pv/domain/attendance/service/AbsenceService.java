@@ -29,11 +29,17 @@ public class AbsenceService {
 
     @Transactional
     public AbsenceResponse request(Long memberId, AbsenceRequest req) {
-        Attendance attendance = attendanceRepository.findBySessionIdAndMemberId(req.sessionId(), memberId)
-                .orElseThrow(() -> new CustomException(HttpStatus.BAD_REQUEST, "이 회차 참석 대상이 아닙니다."));
+        Attendance attendance = attendanceRepository.findWithLockBySessionIdAndMemberId(req.sessionId(), memberId)
+                .orElseThrow(() -> new CustomException(HttpStatus.FORBIDDEN, "이 회차 참석 대상이 아닙니다."));
+
         if (attendance.getStatus() == AttendanceStatus.PRESENT) {
-            throw new CustomException(HttpStatus.UNAUTHORIZED, "이미 불참 요청이 있습니다.");
+            throw new CustomException(HttpStatus.CONFLICT, "이미 출석한 회차입니다.");
         }
+        if (absenceRepository.existsBySessionIdAndMemberIdAndStatusIn(
+                req.sessionId(), memberId, List.of(AbsenceStatus.REQUESTED, AbsenceStatus.APPROVED))) {
+            throw new CustomException(HttpStatus.CONFLICT, "이미 불참 요청이 있습니다.");
+        }
+
         Absence absence = absenceRepository.save(
                 new Absence(req.sessionId(), attendance.getActivityId(), memberId, req.reason()));
         return AbsenceResponse.from(absence);

@@ -66,7 +66,7 @@ public class Absence {
         review(AbsenceStatus.REJECTED, reviewerId, comment, now);
     }
 
-    public void review(AbsenceStatus next, Long reviewerId, String comment, LocalDateTime now) {
+    private void review(AbsenceStatus next, Long reviewerId, String comment, LocalDateTime now) {
         if (status != AbsenceStatus.REQUESTED) {
             throw new CustomException(HttpStatus.CONFLICT, "이미 처리된 불참 요청입니다.");
         }

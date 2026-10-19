@@ -53,9 +53,9 @@ public class Attendance {
 
     public void checkIn(LocalDateTime now) {
         if (status != AttendanceStatus.PENDING) {
-            throw new CustomException(HttpStatus.BAD_REQUEST, "이미 출석 처리된 회차입니다.");
+            throw new CustomException(HttpStatus.CONFLICT, "이미 출석 처리된 회차입니다.");
         }
-        this.status = AttendanceStatus.PENDING;
+        this.status = AttendanceStatus.PRESENT;
         this.checkedAt = now;
     }
 

@@ -1,6 +1,8 @@
 package pv.domain.attendance.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -38,10 +40,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
             """)
     List<StatusCount> countByActivityGroupByMember(@Param("activityId") Long activityId);
 
-    /** 체크인 마감 후 미체크 → 무단 불참 (스케줄러에서 @Transactional 서비스를 통해 호출) */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update Attendance a set a.status = :to where a.sessionId = :sessionId and a.status = :from")
     int bulkChangeStatus(@Param("sessionId") Long sessionId,
                          @Param("from") AttendanceStatus from,
                          @Param("to") AttendanceStatus to);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Attendance a where a.sessionId = :sessionId and a.memberId = :memberId")
+    Optional<Attendance> findWithLockBySessionIdAndMemberId(@Param("sessionId") Long sessionId,
+                                                            @Param("memberId") Long memberId);
 }
