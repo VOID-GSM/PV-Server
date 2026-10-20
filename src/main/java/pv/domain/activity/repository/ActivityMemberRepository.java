@@ -30,6 +30,9 @@ public interface ActivityMemberRepository extends JpaRepository<ActivityMember, 
     @Query("delete from ActivityMember m where m.activityId = :activityId")
     void deleteAllByActivityId(@Param("activityId") Long activityId);
 
+    @Query("select am.activityId from ActivityMember am where am.memberId = :memberId")
+    List<Long> findActivityIdsByMemberId(@Param("memberId") Long memberId);
+
     boolean existsByActivityIdAndMemberId(Long activityId, Long memberId);
 
     boolean existsByActivityIdAndMemberIdAndRole(Long activityId, Long memberId, ActivityRole role);
