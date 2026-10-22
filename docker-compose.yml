@@ -18,6 +18,7 @@ services:
       options: { max-size: "10m", max-file: "3" }
 
   backend:
+    build: .
     image: ${BACKEND_IMAGE:-pv-backend:local}
     restart: unless-stopped
     depends_on:
