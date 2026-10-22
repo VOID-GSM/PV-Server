@@ -50,4 +50,17 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("select a from Attendance a where a.sessionId = :sessionId and a.memberId = :memberId")
     Optional<Attendance> findWithLockBySessionIdAndMemberId(@Param("sessionId") Long sessionId,
                                                             @Param("memberId") Long memberId);
+
+    @Query("select a.sessionId from Attendance a where a.memberId = :memberId and a.sessionId in :sessionIds")
+    List<Long> findSessionIds(@Param("memberId") Long memberId,
+                              @Param("sessionIds") Collection<Long> sessionIds);
+
+    @Modifying(flushAutomatically = true)
+    @Query("delete from Attendance a where a.memberId = :memberId and a.sessionId in :sessionIds")
+    void deleteByMemberAndSessions(@Param("memberId") Long memberId,
+                                   @Param("sessionIds") Collection<Long> sessionIds);
+
+    @Modifying(flushAutomatically = true)
+    @Query("delete from Attendance a where a.activityId = :activityId")
+    void deleteAllByActivityId(@Param("activityId") Long activityId);
 }
