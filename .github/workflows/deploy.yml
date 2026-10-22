@@ -31,7 +31,7 @@ jobs:
 
       - name: Build & restart on EC2 (SSM)
         run: |
-          id=$(aws ssm send-command --document-name teamops-prod-deploy --instance-ids "$INSTANCE_ID" \
+          id=$(aws ssm send-command --document-name pv-deploy --instance-ids "$INSTANCE_ID" \
             --query Command.CommandId --output text)
           for _ in $(seq 90); do
             sleep 10
