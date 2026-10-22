@@ -41,3 +41,11 @@ jobs:
           aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
             --query '[StandardOutputContent, StandardErrorContent]' --output text
           [ "$s" = Success ]
+
+      - name: Discord notify
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_SERVER_WEBHOOK }}
+          title: ${{ job.status == 'success' && '🚀 배포 성공 🚀' || '❌ 배포 실패 ❌' }}
+          description: ${{ job.status == 'success' && format('{0} 브랜치 EC2 배포 완료', github.ref_name) || format('{0} 브랜치 EC2 배포 실패. Actions 로그 확인', github.ref_name) }}
