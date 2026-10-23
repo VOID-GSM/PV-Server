@@ -12,4 +12,5 @@ public interface SkillRepository extends JpaRepository<Skill, Long> {
     List<Skill> findAllByMajorAndActiveTrueOrderBySortOrderAscIdAsc(Major major);
     List<Skill> findAllByMajorInAndActiveTrueOrderByMajorAscSortOrderAscIdAsc(Collection<Major> majors);
     boolean existsByMajorAndName(Major major, String name);
+    boolean existsByMajorAndNameAndIdNot(Major major, String name, Long id);
 }

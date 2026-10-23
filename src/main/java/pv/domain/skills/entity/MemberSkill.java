@@ -14,9 +14,12 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.http.HttpStatus;
 import pv.domain.member.entity.Member;
+import pv.global.exception.CustomException;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(
@@ -51,14 +54,20 @@ public class MemberSkill {
 
     public MemberSkill(Member member, Skill skill, int score) {
         validateScore(score);
-        this.member = member;
-        this.skill = skill;
+        this.member = Objects.requireNonNull(member, "회원은 필수입니다.");
+        this.skill = Objects.requireNonNull(skill, "스킬은 필수입니다.");
         this.score = score;
     }
 
-    private final void validateScore(int score) {
+    public void reassess(int score) {
+        validateScore(score);
+        this.score = score;
+    }
+
+    private static void validateScore(int score) {
         if (score < MIN_SCORE || score > MAX_SCORE) {
-            throw new IllegalArgumentException("score must be between 1 and 5: " + score);
+            throw new CustomException(HttpStatus.BAD_REQUEST,
+                    "점수는 " + MIN_SCORE + "~" + MAX_SCORE + " 사이여야 합니다: " + score);
         }
     }
 }
