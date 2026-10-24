@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 import pv.domain.worklogs.entity.Visibility;
 import pv.domain.worklogs.entity.Worklog;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface WorklogRepository extends JpaRepository<Worklog, Long> {
@@ -25,4 +27,18 @@ public interface WorklogRepository extends JpaRepository<Worklog, Long> {
             Pageable pageable);
     @EntityGraph(attributePaths = "author")
     Optional<Worklog> findWithAuthorById(Long id);
+
+    @EntityGraph(attributePaths = "author")
+    @Query("""
+            select w from Worklog w
+            where w.author.teamId = :teamId
+                and w.visibility = :visibility
+                and w.createdAt >= :start and w.createdAt < :end
+            order by w.createdAt
+            """)
+    List<Worklog> findForReport(
+            @Param("teamId") Long teamId,
+            @Param("visibility") Visibility visibility,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }
