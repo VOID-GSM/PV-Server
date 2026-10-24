@@ -1,8 +1,11 @@
 package pv.domain.reports.service;
 
+import org.springframework.stereotype.Component;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Component
 public class StubReportSummarizer implements ReportSummarizer {
     @Override
     public String summarize(List<String> sources) {
