@@ -9,6 +9,7 @@ COPY src ./src
 RUN ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre
+ENV TZ=Asia/Seoul
 WORKDIR /app
 RUN useradd -r -u 1001 app
 COPY --from=build /app/build/libs/*.jar app.jar
