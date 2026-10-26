@@ -76,7 +76,7 @@ public class Assignment {
 
     public Assignment(Long teamId, Member author, String title, String description, LocalDateTime deadline,
                       AssignmentTargetType targetType, Set<Major> majors, Set<Long> memberIds,
-                      List<String> fileKeys, Set<Long> skillIds) {
+                      List<String> fileKeys, Set<Long> skillIds, LocalDateTime createdAt) {
         this.teamId = teamId;
         this.author = author;
         this.title = title;
@@ -87,9 +87,8 @@ public class Assignment {
         this.targetMemberIds.addAll(memberIds);
         this.fileKeys = new ArrayList<>(fileKeys);
         this.skillIds.addAll(skillIds);
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = createdAt;
     }
-
     public boolean isAuthor(Long memberId) {
         return author.getId().equals(memberId);
     }

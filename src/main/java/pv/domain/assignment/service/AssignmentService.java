@@ -10,7 +10,6 @@ import pv.domain.assignment.dto.projection.*;
 import pv.domain.assignment.dto.request.*;
 import pv.domain.assignment.dto.response.*;
 import pv.domain.assignment.entity.Assignment;
-import pv.domain.assignment.entity.AssignmentTargetType;
 import pv.domain.assignment.repository.AssignmentRepository;
 import pv.domain.assignment.repository.SubmissionRepository;
 import pv.domain.member.entity.Major;
@@ -21,6 +20,7 @@ import pv.domain.skills.entity.Skill;
 import pv.domain.skills.repository.SkillRepository;
 import pv.global.exception.CustomException;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -38,6 +38,7 @@ public class AssignmentService {
     private final MemberRepository memberRepository;
     private final SkillRepository skillRepository;
     private final AttachmentValidator attachmentValidator;
+    private final Clock clock;
 
     // 1. 목록: 쿼리 2~3회 고정 (페이지 + 내 제출 상태 or 제출 수). 스킬은 목록에 없으므로 추가 쿼리 없음
     public PageResponse<AssignmentSummaryResponse> list(Long memberId, AssignmentListType type, Pageable pageable) {
@@ -74,7 +75,8 @@ public class AssignmentService {
         if (!me.hasPermission(Role.SENIOR)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "선배 기수 또는 부장만 과제를 출제할 수 있습니다.");
         }
-        if (!req.deadline().isAfter(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (!req.deadline().isAfter(now)) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "마감 시간은 현재 이후여야 합니다.");
         }
 
@@ -107,7 +109,7 @@ public class AssignmentService {
 
         return assignmentRepository.save(new Assignment(
                 me.getTeamId(), me, req.title().strip(), req.description().strip(), req.deadline(),
-                req.targetType(), majors, memberIds, fileKeys, skillIds)).getId();
+                req.targetType(), majors, memberIds, fileKeys, skillIds, now)).getId();
     }
 
     // 3. 상세: 출제자 / 부장 / 대상자
@@ -141,7 +143,7 @@ public class AssignmentService {
         if (!a.isAuthor(me.getId())) {
             throw new CustomException(HttpStatus.FORBIDDEN, "출제자만 과제를 수정할 수 있습니다.");
         }
-        if (req.deadline() != null && !req.deadline().isAfter(LocalDateTime.now())) {
+        if (req.deadline() != null && !req.deadline().isAfter(LocalDateTime.now(clock))) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "마감 시간은 현재 이후여야 합니다.");
         }
         List<String> fileKeys = req.fileKeys() == null ? null : attachmentValidator.normalize(req.fileKeys());
