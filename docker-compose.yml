@@ -1,3 +1,4 @@
+
 services:
   db:
     image: postgres:18
@@ -35,5 +36,11 @@ services:
       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
       STORAGE_PATH_STYLE: ${STORAGE_PATH_STYLE:-false}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75"
+    healthcheck:
+      test: [ "CMD", "bash", "-c", ":> /dev/tcp/127.0.0.1/8081" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 120s
     mem_limit: 1g
     logging: *logging

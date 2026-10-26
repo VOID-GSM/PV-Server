@@ -21,6 +21,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import pv.domain.notification.dto.response.NotificationSettingsResponse;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -71,18 +75,41 @@ public class NotificationService {
         notificationRepository.markAllRead(memberId, LocalDateTime.now(clock));
     }
 
-    // 설정 row가 없으면 만들고, 있으면 수정한다.
+
+    // 모든 알림 유형의 설정 조회. 저장된 설정이 없으면 기본값 true
+    public NotificationSettingsResponse getSettings(Long memberId) {
+        Map<NotificationType, Boolean> savedSettings =
+                settingRepository.findAllByMemberId(memberId)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                NotificationSetting::getType,
+                                NotificationSetting::isEnabled
+                        ));
+
+        List<NotificationSettingsResponse.SettingItem> settings =
+                java.util.Arrays.stream(NotificationType.values())
+                        .map(type -> new NotificationSettingsResponse.SettingItem(
+                                type,
+                                savedSettings.getOrDefault(type, true)
+                        ))
+                        .toList();
+
+        return new NotificationSettingsResponse(settings);
+    }
+
+
+
+    // 설정이 없으면 생성하고, 있으면 갱신한다.
+    // DB upsert로 동시 요청 시 유니크 제약 위반을 방지한다.
     @Transactional
     public void updateSetting(Long memberId, NotificationSettingUpdateRequest request) {
-        boolean enabled = request.enabled();
-
-        settingRepository.findByMemberIdAndType(memberId, request.type())
-                .ifPresentOrElse(
-                        setting -> setting.changeEnabled(enabled),
-                        () -> settingRepository.save(
-                                new NotificationSetting(memberId, request.type(), enabled))
-                );
+        settingRepository.upsertSetting(
+                memberId,
+                request.type().name(),
+                request.enabled()
+        );
     }
+
 
     // ===== 다른 도메인(공지 등)에서 쓰는 메서드 =====
 

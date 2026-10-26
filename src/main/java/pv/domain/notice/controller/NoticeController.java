@@ -10,7 +10,11 @@ import pv.domain.notice.dto.request.NoticeCreateRequest;
 import pv.domain.notice.dto.request.NoticeUpdateRequest;
 import pv.domain.notice.dto.response.*;
 import pv.domain.notice.service.NoticeService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 
+@Validated
 @RestController
 @RequestMapping("/notices")
 @RequiredArgsConstructor
@@ -23,7 +27,8 @@ public class NoticeController {
     public ResponseEntity<NoticeListResponse> getNotices(
             @AuthenticationPrincipal Long loginMemberId,
             @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20")
+            @Min(1) @Max(50) int size) {
         return ResponseEntity.ok(noticeService.getNotices(loginMemberId, cursor, size));
     }
 
