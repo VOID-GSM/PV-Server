@@ -8,6 +8,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import pv.domain.member.entity.Major;
 import pv.domain.member.entity.Member;
+import pv.domain.member.entity.Role;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -89,17 +90,18 @@ public class Assignment {
         this.skillIds.addAll(skillIds);
         this.createdAt = createdAt;
     }
+
     public boolean isAuthor(Long memberId) {
         return author.getId().equals(memberId);
     }
 
-    // 출제자 본인은 대상자에서 제외
+    // 출제자 본인은 대상자에서 제외. ALL은 선배·부장을 뺀 일반 부원만
     public boolean isTarget(Member member) {
         if (!teamId.equals(member.getTeamId()) || isAuthor(member.getId())) {
             return false;
         }
         return switch (targetType) {
-            case ALL -> true;
+            case ALL -> !member.hasRole(Role.SENIOR) && !member.hasRole(Role.LEADER);
             case MAJOR -> member.getMajors().stream().anyMatch(targetMajors::contains);
             case MEMBER -> targetMemberIds.contains(member.getId());
         };

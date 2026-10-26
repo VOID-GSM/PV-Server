@@ -27,11 +27,16 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     @Query("select a from Assignment a where a.id = :id")
     Optional<Assignment> findByIdForUpdate(Long id);
 
+    // ALL은 보는 사람이 선배·부장이 아닐 때만 대상
     @Query(value = """
             select a from Assignment a join fetch a.author
             where a.teamId = :teamId
               and a.author.id <> :memberId
-              and (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.ALL
+              and ((a.targetType = pv.domain.assignment.entity.AssignmentTargetType.ALL
+                    and not exists (select 1 from Member me join me.roles r
+                                    where me.id = :memberId
+                                      and r in (pv.domain.member.entity.Role.SENIOR,
+                                                pv.domain.member.entity.Role.LEADER)))
                    or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MEMBER
                        and exists (select 1 from a.targetMemberIds t where t = :memberId))
                    or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MAJOR
@@ -42,7 +47,11 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
                     select count(a) from Assignment a
                     where a.teamId = :teamId
                       and a.author.id <> :memberId
-                      and (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.ALL
+                      and ((a.targetType = pv.domain.assignment.entity.AssignmentTargetType.ALL
+                            and not exists (select 1 from Member me join me.roles r
+                                            where me.id = :memberId
+                                              and r in (pv.domain.member.entity.Role.SENIOR,
+                                                        pv.domain.member.entity.Role.LEADER)))
                            or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MEMBER
                                and exists (select 1 from a.targetMemberIds t where t = :memberId))
                            or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MAJOR
