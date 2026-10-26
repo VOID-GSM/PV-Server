@@ -53,6 +53,9 @@ public class StoredFile {
     @Column(name = "uploaded_at")
     private Instant uploadedAt;
 
+    @Column(name = "attached_at")
+    private Instant attachedAt;
+
     private StoredFile(String objectKey, String originalName, String contentType,
                        Long sizeBytes, Long uploaderId, Instant now) {
         this.objectKey = Objects.requireNonNull(objectKey);
@@ -80,6 +83,12 @@ public class StoredFile {
         }
         this.status = FileStatus.UPLOADED;
         this.uploadedAt = now;
+    }
+
+    public void markAttached(Instant now) {
+        if (this.attachedAt == null) {
+            this.attachedAt = now;
+        }
     }
 
     public boolean isUploaded() {
