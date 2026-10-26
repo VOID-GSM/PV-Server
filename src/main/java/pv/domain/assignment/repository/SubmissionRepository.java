@@ -14,9 +14,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+
 public interface SubmissionRepository extends JpaRepository<Submission, Long> {
 
     boolean existsByAssignmentIdAndSubmitterId(Long assignmentId, Long submitterId);
+    List<Submission> findAllByAssignmentId(Long assignmentId);
 
     // 상세: 제출자/과제/출제자까지 한 번에
     @Query("""

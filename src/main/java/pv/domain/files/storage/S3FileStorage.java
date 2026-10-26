@@ -1,3 +1,4 @@
+
 package pv.domain.files.storage;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class S3FileStorage {
+
     public static final String TAGGING_HEADER = "x-amz-tagging";
     public static final String TEMP_TAGGING = "status=temp";
 
@@ -33,7 +35,12 @@ public class S3FileStorage {
     private final S3Presigner s3Presigner;
     private final StorageProperties properties;
 
-    public PresignedUrl presignUpload(String objectKey, String contentType, long size, Duration ttl) {
+    public PresignedUrl presignUpload(
+            String objectKey,
+            String contentType,
+            long size,
+            Duration ttl
+    ) {
         PutObjectRequest put = PutObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(objectKey)
@@ -46,10 +53,17 @@ public class S3FileStorage {
                 .signatureDuration(ttl)
                 .putObjectRequest(put));
 
-        return new PresignedUrl(presigned.url().toString(), presigned.expiration());
+        return new PresignedUrl(
+                presigned.url().toString(),
+                presigned.expiration()
+        );
     }
 
-    public PresignedUrl presignDownload(String objectKey, String contentDisposition, Duration ttl) {
+    public PresignedUrl presignDownload(
+            String objectKey,
+            String contentDisposition,
+            Duration ttl
+    ) {
         GetObjectRequest get = GetObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(objectKey)
@@ -60,7 +74,10 @@ public class S3FileStorage {
                 .signatureDuration(ttl)
                 .getObjectRequest(get));
 
-        return new PresignedUrl(presigned.url().toString(), presigned.expiration());
+        return new PresignedUrl(
+                presigned.url().toString(),
+                presigned.expiration()
+        );
     }
 
     public Optional<Long> findObjectSize(String objectKey) {
@@ -68,6 +85,7 @@ public class S3FileStorage {
             HeadObjectResponse head = s3Client.headObject(r -> r
                     .bucket(properties.bucket())
                     .key(objectKey));
+
             return Optional.of(head.contentLength());
         } catch (S3Exception e) {
             if (e.statusCode() == 404) {
@@ -82,6 +100,7 @@ public class S3FileStorage {
             s3Client.deleteObjectTagging(r -> r
                     .bucket(properties.bucket())
                     .key(objectKey));
+
             return true;
         } catch (S3Exception e) {
             if (e.statusCode() == 404) {
@@ -91,21 +110,47 @@ public class S3FileStorage {
         }
     }
 
+    public void deleteObject(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+
+        s3Client.deleteObject(r -> r
+                .bucket(properties.bucket())
+                .key(objectKey));
+    }
+
     public void deleteObjects(Collection<String> objectKeys) {
+        if (objectKeys == null || objectKeys.isEmpty()) {
+            return;
+        }
+
         List<ObjectIdentifier> ids = objectKeys.stream()
+                .filter(key -> key != null && !key.isBlank())
                 .distinct()
-                .map(key -> ObjectIdentifier.builder().key(key).build())
+                .map(key -> ObjectIdentifier.builder()
+                        .key(key)
+                        .build())
                 .toList();
 
         for (int from = 0; from < ids.size(); from += DELETE_BATCH_SIZE) {
-            List<ObjectIdentifier> chunk = ids.subList(from, Math.min(from + DELETE_BATCH_SIZE, ids.size()));
+            List<ObjectIdentifier> chunk = ids.subList(
+                    from,
+                    Math.min(from + DELETE_BATCH_SIZE, ids.size())
+            );
+
             DeleteObjectsResponse response = s3Client.deleteObjects(r -> r
                     .bucket(properties.bucket())
                     .delete(d -> d.objects(chunk).quiet(true)));
 
             if (response.hasErrors() && !response.errors().isEmpty()) {
                 response.errors().forEach(err ->
-                        log.warn("S3 객체 삭제 실패 key={} code={} message={}", err.key(), err.code(), err.message()));
+                        log.warn(
+                                "S3 객체 삭제 실패 key={} code={} message={}",
+                                err.key(),
+                                err.code(),
+                                err.message()
+                        ));
             }
         }
     }
