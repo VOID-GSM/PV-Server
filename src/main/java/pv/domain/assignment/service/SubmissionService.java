@@ -69,7 +69,7 @@ public class SubmissionService {
     public SubmissionResponse submit(Long memberId, Long assignmentId, SubmissionRequest req) {
         Member me = joinedMember(memberId);
         requireAnyContent(req);
-        List<String> fileKeys = attachmentValidator.normalize(req.fileKeys());
+        List<String> fileKeys = attachmentValidator.normalize(req.fileKeys(), memberId);
 
         Assignment a = assignmentRepository.findByIdForShare(assignmentId)
                 .filter(x -> x.getTeamId().equals(me.getTeamId()))
@@ -107,7 +107,7 @@ public class SubmissionService {
     public void resubmit(Long memberId, Long assignmentId, Long submissionId, SubmissionRequest req) {
         Member me = joinedMember(memberId);
         requireAnyContent(req);
-        List<String> fileKeys = attachmentValidator.normalize(req.fileKeys());
+        List<String> fileKeys = attachmentValidator.normalize(req.fileKeys(), memberId);
 
         Submission s = lockedSubmission(assignmentId, submissionId);
         if (!s.isSubmittedBy(me.getId())) {

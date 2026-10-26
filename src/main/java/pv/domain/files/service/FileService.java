@@ -134,9 +134,14 @@ public class FileService {
                 verifyUploaded(file);
                 file.markUploaded(now);
             }
+
             if (!fileStorage.removeTempTag(key)) {
-                throw FileException.badRequest("업로드되지 않았거나 만료된 파일입니다: " + key);
+                throw FileException.badRequest(
+                        "업로드되지 않았거나 만료된 파일입니다: " + key
+                );
             }
+
+            file.markAttached(now);
         }
     }
 
