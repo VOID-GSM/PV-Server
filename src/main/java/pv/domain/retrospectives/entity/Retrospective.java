@@ -1,4 +1,4 @@
-package pv.domain.board.entity;
+package pv.domain.retrospectives.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -30,5 +30,9 @@ public class Retrospective {
         this.boardId = boardId;
         this.memberId = memberId;
         this.createdAt = LocalDateTime.now();
+    }
+
+    public void update(String content) {
+        this.content = content;
     }
 }
