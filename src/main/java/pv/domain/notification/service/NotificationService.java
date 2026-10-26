@@ -98,18 +98,18 @@ public class NotificationService {
     }
 
 
-    // 설정 row가 없으면 만들고, 있으면 수정한다.
+
+    // 설정이 없으면 생성하고, 있으면 갱신한다.
+    // DB upsert로 동시 요청 시 유니크 제약 위반을 방지한다.
     @Transactional
     public void updateSetting(Long memberId, NotificationSettingUpdateRequest request) {
-        boolean enabled = request.enabled();
-
-        settingRepository.findByMemberIdAndType(memberId, request.type())
-                .ifPresentOrElse(
-                        setting -> setting.changeEnabled(enabled),
-                        () -> settingRepository.save(
-                                new NotificationSetting(memberId, request.type(), enabled))
-                );
+        settingRepository.upsertSetting(
+                memberId,
+                request.type().name(),
+                request.enabled()
+        );
     }
+
 
     // ===== 다른 도메인(공지 등)에서 쓰는 메서드 =====
 
