@@ -21,6 +21,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import pv.domain.notification.dto.response.NotificationSettingsResponse;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -70,6 +74,29 @@ public class NotificationService {
     public void markAllRead(Long memberId) {
         notificationRepository.markAllRead(memberId, LocalDateTime.now(clock));
     }
+
+
+    // 모든 알림 유형의 설정 조회. 저장된 설정이 없으면 기본값 true
+    public NotificationSettingsResponse getSettings(Long memberId) {
+        Map<NotificationType, Boolean> savedSettings =
+                settingRepository.findAllByMemberId(memberId)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                NotificationSetting::getType,
+                                NotificationSetting::isEnabled
+                        ));
+
+        List<NotificationSettingsResponse.SettingItem> settings =
+                java.util.Arrays.stream(NotificationType.values())
+                        .map(type -> new NotificationSettingsResponse.SettingItem(
+                                type,
+                                savedSettings.getOrDefault(type, true)
+                        ))
+                        .toList();
+
+        return new NotificationSettingsResponse(settings);
+    }
+
 
     // 설정 row가 없으면 만들고, 있으면 수정한다.
     @Transactional
