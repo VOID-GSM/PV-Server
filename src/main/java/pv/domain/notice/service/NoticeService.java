@@ -1,5 +1,7 @@
 package pv.domain.notice.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import pv.domain.notification.event.DiscordNoticeEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -46,6 +48,7 @@ public class NoticeService {
     // IN 절 바인딩 파라미터가 한 쿼리에 너무 많아지지 않게 나눠서 넣는다.
     private static final int INSERT_CHUNK_SIZE = 1000;
 
+
     private final Clock clock;
     private final NoticeRepository noticeRepository;
     private final NoticeRecipientRepository recipientRepository;
@@ -55,6 +58,7 @@ public class NoticeService {
     private final ActivityMemberRepository activityMemberRepository;
     private final GenerationRepository generationRepository;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ===== 목록 / 상세 =====
 
@@ -138,6 +142,12 @@ public class NoticeService {
 
         notificationService.send(
                 NotificationType.NOTICE, "[공지] " + notice.getTitle(), notice.getId(), recipientIds);
+        eventPublisher.publishEvent(
+                new DiscordNoticeEvent(
+                        notice.getTeamId(),
+                        "[공지] " + notice.getTitle()
+                )
+        );
 
         return NoticeDetailResponse.of(notice, me.getName(), true);
     }

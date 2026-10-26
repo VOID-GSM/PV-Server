@@ -10,12 +10,15 @@ import pv.domain.notification.dto.request.NotificationSettingUpdateRequest;
 import pv.domain.notification.dto.response.NotificationListResponse;
 import pv.domain.notification.dto.response.NotificationSettingsResponse;
 import pv.domain.notification.service.NotificationService;
+import pv.domain.notification.dto.request.DiscordWebhookUpdateRequest;
+import pv.domain.notification.service.DiscordSettingService;
 
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
 
+    private final DiscordSettingService discordSettingService;
     private final NotificationService notificationService;
 
     // 내 알림 목록 조회
@@ -61,6 +64,15 @@ public class NotificationController {
             @AuthenticationPrincipal Long loginMemberId,
             @Valid @RequestBody NotificationSettingUpdateRequest request) {
         notificationService.updateSetting(loginMemberId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    // 디스코드 웹훅 URL 설정 및 변경 (부장 전용)
+    @PatchMapping("/discord")
+    public ResponseEntity<Void> updateDiscordWebhook(
+            @AuthenticationPrincipal Long loginMemberId,
+            @Valid @RequestBody DiscordWebhookUpdateRequest request) {
+        discordSettingService.updateWebhook(loginMemberId, request);
         return ResponseEntity.noContent().build();
     }
 }
