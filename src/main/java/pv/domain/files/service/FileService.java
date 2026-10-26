@@ -1,8 +1,11 @@
 package pv.domain.files.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pv.domain.files.dto.FileDownloadResponse;
 import pv.domain.files.dto.UploadUrlRequest;
 import pv.domain.files.dto.UploadUrlResponse;
@@ -21,17 +24,21 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FileService {
-    private static final DateTimeFormatter KEY_DATE = DateTimeFormatter.ofPattern("yyyy/MM");
     private static final Pattern SAFE_EXTENSION = Pattern.compile("[a-z0-9]{1,10}");
     private static final Set<String> INLINE_TYPES = Set.of(
             "image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"
@@ -43,7 +50,7 @@ public class FileService {
     @Transactional
     public UploadUrlResponse issueUploadUrl(Long memberId, UploadUrlRequest request) {
         validateUpload(request);
-        String objectKey = generateObjectKey(request.fileName());
+        String objectKey = generateObjectKey(memberId, request.fileName());
         fileRepository.save(StoredFile.pending(
                 objectKey,
                 request.fileName().strip(),
@@ -56,7 +63,8 @@ public class FileService {
         return new UploadUrlResponse(
                 objectKey,
                 presigned.url(),
-                Map.of("Content-Type", request.contentType()),
+                Map.of("Content-Type", request.contentType(),
+                        S3FileStorage.TAGGING_HEADER, S3FileStorage.TEMP_TAGGING),
                 presigned.expiresAt());
     }
 
@@ -78,7 +86,6 @@ public class FileService {
         if (actualSize != file.getSizeBytes()) {
             throw FileException.badRequest("신고한 파일 크기와 실제 업로드된 크기가 다릅니다.");
         }
-
         file.markUploaded(Instant.now());
         return new FileUploadCompleteResponse(file.getId());
     }
@@ -102,6 +109,72 @@ public class FileService {
                 presigned.expiresAt());
     }
 
+    @Transactional
+    public void attach(Long memberId, Collection<String> objectKeys) {
+        if (objectKeys.isEmpty()) {
+            return;
+        }
+        Map<String, StoredFile> files = fileRepository.findAllByObjectKeyIn(objectKeys).stream()
+                .collect(Collectors.toMap(StoredFile::getObjectKey, Function.identity()));
+
+        for (String key : objectKeys) {
+            StoredFile file = files.get(key);
+            if (file == null) {
+                throw FileException.badRequest("존재하지 않는 파일입니다: " + key);
+            }
+            if (!file.isOwnedBy(memberId)) {
+                throw FileException.forbidden();
+            }
+        }
+
+        Instant now = Instant.now();
+        for (String key : objectKeys) {
+            StoredFile file = files.get(key);
+            if (!file.isUploaded()) {
+                verifyUploaded(file);
+                file.markUploaded(now);
+            }
+            if (!fileStorage.removeTempTag(key)) {
+                throw FileException.badRequest("업로드되지 않았거나 만료된 파일입니다: " + key);
+            }
+        }
+    }
+
+    @Transactional
+    public void deleteByKeys(Collection<String> objectKeys) {
+        if (objectKeys == null || objectKeys.isEmpty()) {
+            return;
+        }
+        List<String> keys = objectKeys.stream().distinct().toList();
+        fileRepository.deleteAllByObjectKeyIn(keys);
+        runAfterCommit(() -> fileStorage.deleteObjects(keys));
+    }
+
+    private void verifyUploaded(StoredFile file) {
+        long actualSize = fileStorage.findObjectSize(file.getObjectKey())
+                .orElseThrow(() -> FileException.badRequest("스토리지에 업로드가 완료되지 않았습니다."));
+        if (actualSize != file.getSizeBytes()) {
+            throw FileException.badRequest("신고한 파일 크기와 실제 업로드된 크기가 다릅니다.");
+        }
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    task.run();
+                } catch (Exception e) {
+                    log.error("커밋 후 스토리지 파일 삭제 실패", e);
+                }
+            }
+        });
+    }
+
     private void validateUpload(UploadUrlRequest request) {
         if (request.size() > properties.maxSize().toBytes()) {
             throw FileException.badRequest(
@@ -113,9 +186,8 @@ public class FileService {
         }
     }
 
-    private String generateObjectKey(String fileName) {
-        String datePath = LocalDate.now(ZoneOffset.UTC).format(KEY_DATE);
-        return "files/" + datePath + "/" + UUID.randomUUID() + extractExtension(fileName);
+    private String generateObjectKey(Long memberId, String fileName) {
+        return "uploads/" + memberId + "/" + UUID.randomUUID() + extractExtension(fileName);
     }
 
     private String extractExtension(String fileName) {
