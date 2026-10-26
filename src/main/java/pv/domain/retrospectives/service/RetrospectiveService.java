@@ -55,6 +55,13 @@ public class RetrospectiveService {
         Retrospective retrospective = retrospectiveRepository.findByBoardIdAndMemberId(boardId, memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회고를 찾을 수 없습니다."));
         retrospective.update(request.content());
+
+        if (!board.isClosed()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "종료된 보드의 회고만 수정할 수 있습니다."
+            );
+        }
     }
 
     private Board findBoard(Long boardId) {
@@ -62,9 +69,13 @@ public class RetrospectiveService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "보드를 찾을 수 없습니다."));
     }
 
+
     private void validateTeamMember(Member member, Board board) {
         if (!Objects.equals(member.getTeamId(), board.getTeamId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "해당 보드의 팀원이 아닙니다.");
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "보드를 찾을 수 없습니다."
+            );
         }
     }
 
