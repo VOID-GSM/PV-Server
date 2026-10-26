@@ -13,7 +13,6 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 import pv.domain.member.entity.Member;
 
 import java.time.LocalDateTime;
@@ -25,7 +24,7 @@ import java.util.Objects;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_interview_answer_question_member",
                 columnNames = {"question_id", "member_id"}
-))
+        ))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InterviewAnswer {
@@ -43,14 +42,19 @@ public class InterviewAnswer {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
-    @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
     public InterviewAnswer(InterviewQuestion question, Member member, String content) {
+        this(question, member, content, null);
+    }
+
+    // 노션 가져오기용: 작성일을 직접 지정
+    public InterviewAnswer(InterviewQuestion question, Member member, String content, LocalDateTime createdAt) {
         this.question = Objects.requireNonNull(question, "질문은 필수입니다.");
         this.member = Objects.requireNonNull(member, "회원은 필수입니다.");
         this.content = Objects.requireNonNull(content, "답변 내용은 필수입니다.");
+        this.createdAt = (createdAt != null) ? createdAt : LocalDateTime.now();
     }
 
     public void updateContent(String content) {

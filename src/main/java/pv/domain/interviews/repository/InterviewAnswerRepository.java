@@ -21,4 +21,7 @@ public interface InterviewAnswerRepository extends JpaRepository<InterviewAnswer
         """)
     List<AnswerResponse> findAllResponses(@Param("questionId") Long questionId);
     boolean existsByQuestionIdAndMemberId(Long questionId, Long memberId);
+    // 이미 답변이 있는 (질문ID, 회원ID) 쌍을 한 번에 조회 (가져오기 중복 방지용)
+    @Query("select a.question.id, a.member.id from InterviewAnswer a where a.question.id in :questionIds")
+    List<Object[]> findAnsweredPairs(@Param("questionIds") java.util.Collection<Long> questionIds);
 }

@@ -10,7 +10,6 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -50,7 +49,6 @@ public class Post {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -59,18 +57,25 @@ public class Post {
     private LocalDateTime updatedAt;
 
     private Post(Long authorId, Long activityId, Long sessionId,
-                 Long questionId, String title, String content) {
+                 Long questionId, String title, String content, LocalDateTime createdAt) {
         this.authorId = authorId;
         this.activityId = activityId;
         this.sessionId = sessionId;
         this.questionId = questionId;
         this.title = title;
         this.content = content;
+        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
     }
 
     public static Post create(Long authorId, Long activityId, Long sessionId,
                               Long questionId, String title, String content) {
-        return new Post(authorId, activityId, sessionId, questionId, title, content);
+        return new Post(authorId, activityId, sessionId, questionId, title, content, null);
+    }
+
+    // 노션 가져오기용: 작성일을 직접 지정
+    public static Post createImported(Long authorId, Long activityId,
+                                      String title, String content, LocalDateTime createdAt) {
+        return new Post(authorId, activityId, null, null, title, content, createdAt);
     }
 
     public void update(String title, String content) {
