@@ -1,6 +1,7 @@
 package pv.domain.reports.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,9 @@ public class ReportService {
             throw new CustomException(HttpStatus.FORBIDDEN, "부장만 리포트를 생성할 수 있습니다.");
         }
         Long teamId = member.getTeamId();
+        if (teamId == null) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "팀에 소속되지 않은 회원입니다.");
+        }
         LocalDate start = weekStart(date);
         List<String> sources = worklogRepository.findForReport(
                 teamId, Visibility.PUBLIC, start.atStartOfDay(), start.plusDays(7).atStartOfDay())
@@ -55,7 +59,11 @@ public class ReportService {
                     return existing;
                 })
                 .orElseGet(() -> new Report(teamId, start, content));
-        return ReportResponse.from(reportRepository.save(report));
+        try {
+            return ReportResponse.from(reportRepository.save(report));
+        } catch (DataIntegrityViolationException e) {
+            throw new CustomException(HttpStatus.CONFLICT, "리포트를 생성하는 중입니다. 잠시 후 다시 시도해주세요.");
+        }
     }
 
     private Member joinedMember(Long memberId) {
@@ -63,6 +71,9 @@ public class ReportService {
                 .orElseThrow(() -> new CustomException(HttpStatus.UNAUTHORIZED, "회원을 찾을 수 없습니다."));
         if (!member.isJoined()) {
             throw new CustomException(HttpStatus.FORBIDDEN, "가입 승인 대기 중입니다.");
+        }
+        if (member.getTeamId() == null) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "팀에 소속되지 않은 회원입니다.");
         }
         return member;
     }
