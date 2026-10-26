@@ -18,6 +18,7 @@ import pv.domain.member.entity.Member;
 import pv.domain.member.repository.MemberRepository;
 import pv.global.exception.CustomException;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class SubmissionService {
     private final AssignmentMemberQueryRepository memberQueryRepository;
     private final MemberRepository memberRepository;
     private final AttachmentValidator attachmentValidator;
+    private final Clock clock;
 
     // 6. 제출 현황: 출제자 / 부장 — 쿼리 3회 고정 (과제, 대상자, 제출 목록)
     public SubmissionStatusResponse getStatus(Long memberId, Long assignmentId) {
@@ -61,7 +63,8 @@ public class SubmissionService {
         return SubmissionStatusResponse.of(assignmentId, items);
     }
 
-    // 7. 제출: 대상자만. 마감 판정은 과제 공유 락 획득 이후 서버 시간 기준
+    // 7. 제출: 대상자만. 마감 판정은 과제 공유 락 획득 이후 시각 기준
+    // 7. 제출: 대상자만. 마감 판정은 과제 공유 락 획득 이후 시각 기준
     @Transactional
     public SubmissionResponse submit(Long memberId, Long assignmentId, SubmissionRequest req) {
         Member me = joinedMember(memberId);
@@ -78,17 +81,15 @@ public class SubmissionService {
             throw new CustomException(HttpStatus.CONFLICT, "이미 제출한 과제입니다.");
         }
 
-        LocalDateTime now = LocalDateTime.now(); // 락 획득 후 시각
-        boolean late = a.isPastDeadline(now);
+        LocalDateTime now = LocalDateTime.now(clock); // 락 획득 후 시각
         try {
             Submission saved = submissionRepository.saveAndFlush(new Submission(
-                    a, me, blankToNull(req.content()), fileKeys, blankToNull(req.githubUrl()), late, now));
+                    a, me, blankToNull(req.content()), fileKeys, blankToNull(req.githubUrl()), now));
             return SubmissionResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(HttpStatus.CONFLICT, "이미 제출한 과제입니다.");
         }
     }
-
     // 8. 제출물 상세: 제출자 / 출제자 / 부장
     public SubmissionResponse get(Long memberId, Long assignmentId, Long submissionId) {
         Member me = joinedMember(memberId);
@@ -115,7 +116,7 @@ public class SubmissionService {
         if (s.getStatus() != SubmissionStatus.RESUBMIT_REQUESTED) {
             throw new CustomException(HttpStatus.CONFLICT, "재제출이 요청된 제출물만 수정할 수 있습니다.");
         }
-        s.resubmit(blankToNull(req.content()), fileKeys, blankToNull(req.githubUrl()), LocalDateTime.now());
+        s.resubmit(blankToNull(req.content()), fileKeys, blankToNull(req.githubUrl()), LocalDateTime.now(clock));
     }
 
     // 10. 통과: 출제자만. 상태 전이만 수행 (역량 실적은 PASSED 제출물 집계로 읽음)
@@ -128,7 +129,7 @@ public class SubmissionService {
         if (s.getStatus() != SubmissionStatus.SUBMITTED) {
             throw new CustomException(HttpStatus.CONFLICT, "제출 완료 상태의 제출물만 통과 처리할 수 있습니다.");
         }
-        s.pass(req == null ? null : blankToNull(req.comment()), LocalDateTime.now());
+        s.pass(req == null ? null : blankToNull(req.comment()), LocalDateTime.now(clock));
     }
 
     // 11. 재제출 요청: 출제자만, 코멘트 필수
@@ -140,7 +141,7 @@ public class SubmissionService {
         if (s.getStatus() != SubmissionStatus.SUBMITTED) {
             throw new CustomException(HttpStatus.CONFLICT, "제출 완료 상태의 제출물만 재제출을 요청할 수 있습니다.");
         }
-        s.requestResubmission(req.comment().strip(), LocalDateTime.now());
+        s.requestResubmission(req.comment().strip(), LocalDateTime.now(clock));
     }
 
     private Submission lockedSubmission(Long assignmentId, Long submissionId) {

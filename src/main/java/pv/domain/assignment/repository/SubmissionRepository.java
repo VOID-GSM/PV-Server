@@ -33,16 +33,23 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @Query("select s from Submission s where s.id = :id")
     Optional<Submission> findByIdForUpdate(Long id);
 
+    // late는 저장값이 아니라 현재 마감과 비교해 계산
     @Query("""
-            select new pv.domain.assignment.dto.projection.SubmissionRow(s.id, s.submitter.id, s.status, s.late, s.submittedAt)
-            from Submission s where s.assignment.id = :assignmentId
+            select new pv.domain.assignment.dto.projection.SubmissionRow(
+                s.id, s.submitter.id, s.status,
+                case when s.submittedAt > a.deadline then true else false end,
+                s.submittedAt)
+            from Submission s join s.assignment a
+            where a.id = :assignmentId
             """)
     List<SubmissionRow> findRows(Long assignmentId);
 
     @Query("""
-            select new pv.domain.assignment.dto.projection.MySubmissionRow(s.assignment.id, s.status, s.late)
-            from Submission s
-            where s.submitter.id = :memberId and s.assignment.id in :assignmentIds
+            select new pv.domain.assignment.dto.projection.MySubmissionRow(
+                a.id, s.status,
+                case when s.submittedAt > a.deadline then true else false end)
+            from Submission s join s.assignment a
+            where s.submitter.id = :memberId and a.id in :assignmentIds
             """)
     List<MySubmissionRow> findMine(Long memberId, Collection<Long> assignmentIds);
 

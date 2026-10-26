@@ -50,13 +50,10 @@ public class Submission {
     @Column(nullable = false, length = 30)
     private SubmissionStatus status;
 
-    // 최초 제출이 마감 이후였으면 true (재제출해도 유지)
-    @Column(nullable = false)
-    private boolean late;
-
     @Column(columnDefinition = "text")
     private String feedback;
 
+    // 최초 제출 시각 (재제출해도 유지)
     @Column(nullable = false)
     private LocalDateTime submittedAt;
 
@@ -66,16 +63,20 @@ public class Submission {
     private LocalDateTime reviewedAt;
 
     public Submission(Assignment assignment, Member submitter, String content, List<String> fileKeys,
-                      String githubUrl, boolean late, LocalDateTime now) {
+                      String githubUrl, LocalDateTime now) {
         this.assignment = assignment;
         this.submitter = submitter;
         this.content = content;
         this.fileKeys = new ArrayList<>(fileKeys);
         this.githubUrl = githubUrl;
         this.status = SubmissionStatus.SUBMITTED;
-        this.late = late;
         this.submittedAt = now;
         this.lastSubmittedAt = now;
+    }
+
+    // 저장하지 않고 조회할 때 계산: 마감이 바뀌어도 항상 현재 마감 기준
+    public boolean isLate() {
+        return submittedAt.isAfter(assignment.getDeadline());
     }
 
     public boolean isSubmittedBy(Long memberId) {
