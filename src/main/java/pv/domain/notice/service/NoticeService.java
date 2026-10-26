@@ -1,6 +1,7 @@
 package pv.domain.notice.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import pv.domain.notice.entity.NoticeScope;
 import pv.domain.notice.repository.NoticeRecipientRepository;
 import pv.domain.notice.repository.NoticeRepository;
 import pv.domain.notification.entity.NotificationType;
+import pv.domain.notification.event.DiscordNoticeEvent;
 import pv.domain.notification.service.NotificationService;
 import pv.global.exception.CustomException;
 
@@ -55,6 +57,7 @@ public class NoticeService {
     private final ActivityMemberRepository activityMemberRepository;
     private final GenerationRepository generationRepository;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ===== 목록 / 상세 =====
 
@@ -139,6 +142,12 @@ public class NoticeService {
         notificationService.send(
                 NotificationType.NOTICE, "[공지] " + notice.getTitle(), notice.getId(), recipientIds);
 
+        // 팀 전체 대상(ALL) 공지만 디스코드 채널에 올린다. (일부에게만 가는 공지가 전체 채널에 노출되지 않도록)
+        if (scope == NoticeScope.ALL) {
+            eventPublisher.publishEvent(new DiscordNoticeEvent(
+                    me.getTeamId(), "📢 [공지] " + notice.getTitle()));
+        }
+
         return NoticeDetailResponse.of(notice, me.getName(), true);
     }
 
@@ -158,26 +167,16 @@ public class NoticeService {
                 LocalDateTime.now(clock));
     }
 
-
+    // 수신자와 알림을 벌크 쿼리로 먼저 지운 뒤 공지를 삭제한다.
     @Transactional
     public void delete(Long loginMemberId, Long noticeId) {
         Notice notice = findNoticeForUpdate(noticeId);
-        Member me = getMember(loginMemberId);
-
-        // 작성자 또는 같은 팀의 부장만 삭제 가능
-        boolean isAuthor = notice.isAuthor(loginMemberId);
-        boolean isTeamLeader = me.isLeader()
-                && java.util.Objects.equals(me.getTeamId(), notice.getTeamId());
-
-        if (!isAuthor && !isTeamLeader) {
-            requireAuthor(notice, loginMemberId);
-        }
+        requireAuthor(notice, loginMemberId);
 
         recipientRepository.deleteAllByNoticeId(noticeId);
         notificationService.deleteByTarget(NotificationType.NOTICE, noticeId);
         noticeRepository.delete(notice);
     }
-
 
     // ===== 읽음 =====
 

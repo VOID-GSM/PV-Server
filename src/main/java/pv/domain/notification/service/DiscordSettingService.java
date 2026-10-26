@@ -22,6 +22,7 @@ public class DiscordSettingService {
     private final MemberRepository memberRepository;
     private final DiscordSettingRepository discordSettingRepository;
 
+    // 부장만 설정할 수 있다. 팀에 설정이 없으면 만들고, 있으면 URL을 교체한다.
     @Transactional
     public void updateWebhook(Long loginMemberId, DiscordWebhookUpdateRequest request) {
         Member me = memberRepository.findById(loginMemberId)
@@ -39,6 +40,7 @@ public class DiscordSettingService {
                 );
     }
 
+    // 발송할 때 쓴다. 설정이 없으면 비어 있다.
     public Optional<String> findWebhookUrl(Long teamId) {
         return discordSettingRepository.findByTeamId(teamId).map(DiscordSetting::getWebhookUrl);
     }
