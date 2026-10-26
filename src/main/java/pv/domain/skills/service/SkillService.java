@@ -130,9 +130,10 @@ public class SkillService {
     public MemberSkillsResponse getMemberSkills(Long requesterId, Long targetMemberId) {
         Member requester = getJoinedMember(requesterId);
         Member target = getMemberOrThrow(targetMemberId);
+        Long teamId = requester.getTeamId();
 
         // 다른 팀 회원은 존재 여부도 노출하지 않음
-        if (!requester.getTeamId().equals(target.getTeamId())) {
+        if (teamId == null || !teamId.equals(target.getTeamId())) {
             throw new CustomException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다.");
         }
 
