@@ -22,18 +22,20 @@ public interface NoticeRecipientRepository extends JpaRepository<NoticeRecipient
 
     // 내가 받은 공지 + 내가 작성한 공지 최신순 (커서 기반)
     @Query("""
-        select new pv.domain.notice.dto.query.NoticeSummaryRow(
-            n.id, n.title, n.scope, n.authorId, a.name, n.createdAt, r.readAt)
-        from Notice n
-        left join Member a on a.id = n.authorId
-        left join NoticeRecipient r on r.noticeId = n.id and r.memberId = :memberId
-        where n.id < :cursor
-          and (r.memberId = :memberId or n.authorId = :memberId)
-        order by n.id desc
-        """)
-    List<NoticeSummaryRow> findSummaries(@Param("memberId") Long memberId,
-                                         @Param("cursor") Long cursor,
-                                         Pageable pageable);
+    select new pv.domain.notice.dto.query.NoticeSummaryRow(
+        n.id, n.title, n.scope, n.authorId, a.name, n.createdAt, r.readAt)
+    from Notice n
+    left join Member a on a.id = n.authorId
+    left join NoticeRecipient r on r.noticeId = n.id and r.memberId = :memberId
+    where n.id < :cursor
+      and (r.memberId = :memberId or n.authorId = :memberId)
+    order by n.id desc
+    """)
+    List<NoticeSummaryRow> findSummaries(
+            @Param("memberId") Long memberId,
+            @Param("cursor") Long cursor,
+            Pageable pageable
+    );
 
     // 읽음 현황: 대상자 이름 + 읽은 시각을 한 번에 조회
     @Query("""
