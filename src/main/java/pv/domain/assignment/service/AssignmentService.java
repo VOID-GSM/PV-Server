@@ -12,15 +12,17 @@ import pv.domain.assignment.dto.response.*;
 import pv.domain.assignment.entity.Assignment;
 import pv.domain.assignment.entity.AssignmentTargetType;
 import pv.domain.assignment.repository.AssignmentRepository;
-import pv.domain.assignment.repository.CompetencyRecordRepository;
 import pv.domain.assignment.repository.SubmissionRepository;
 import pv.domain.member.entity.Major;
 import pv.domain.member.entity.Member;
 import pv.domain.member.entity.Role;
 import pv.domain.member.repository.MemberRepository;
+import pv.domain.skills.entity.Skill;
+import pv.domain.skills.repository.SkillRepository;
 import pv.global.exception.CustomException;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,11 +35,11 @@ import java.util.stream.Collectors;
 public class AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
-    private final CompetencyRecordRepository competencyRecordRepository;
     private final MemberRepository memberRepository;
+    private final SkillRepository skillRepository;
     private final AttachmentValidator attachmentValidator;
 
-    // 1. 목록: 쿼리 2~3회 고정 (페이지 + 내 제출 상태 or 제출 수)
+    // 1. 목록: 쿼리 2~3회 고정 (페이지 + 내 제출 상태 or 제출 수). 스킬은 목록에 없으므로 추가 쿼리 없음
     public PageResponse<AssignmentSummaryResponse> list(Long memberId, AssignmentListType type, Pageable pageable) {
         Member me = joinedMember(memberId);
         boolean received = type == AssignmentListType.RECEIVED;
@@ -101,15 +103,15 @@ public class AssignmentService {
         }
 
         List<String> fileKeys = attachmentValidator.normalize(req.fileKeys());
-        List<String> competencies = req.competencies() == null ? List.of()
-                : req.competencies().stream().map(String::strip).distinct().toList();
+        Set<Long> skillIds = validatedSkillIds(req.skillIds()); // 스킬 검증 쿼리 1회 (빈 값이면 0회)
 
         return assignmentRepository.save(new Assignment(
                 me.getTeamId(), me, req.title().strip(), req.description().strip(), req.deadline(),
-                req.targetType(), majors, memberIds, fileKeys, competencies)).getId();
+                req.targetType(), majors, memberIds, fileKeys, skillIds)).getId();
     }
 
     // 3. 상세: 출제자 / 부장 / 대상자
+    // 스킬 관련 추가 쿼리 최대 2회 (skillIds 컬렉션 로딩 + 스킬 in 조회). 스킬이 없으면 1회
     public AssignmentDetailResponse get(Long memberId, Long assignmentId) {
         Member me = joinedMember(memberId);
         Assignment a = assignmentRepository.findDetail(assignmentId)
@@ -118,7 +120,15 @@ public class AssignmentService {
         if (!(a.isAuthor(me.getId()) || me.isLeader() || a.isTarget(me))) {
             throw new CustomException(HttpStatus.FORBIDDEN, "조회 권한이 없습니다.");
         }
-        return AssignmentDetailResponse.from(a);
+
+        Set<Long> skillIds = a.getSkillIds();
+        List<Skill> skills = skillIds.isEmpty() ? List.of()
+                : skillRepository.findAllById(skillIds).stream() // 비활성 스킬도 이름 표시
+                .sorted(Comparator.comparing(Skill::getMajor)
+                        .thenComparingInt(Skill::getSortOrder)
+                        .thenComparing(Skill::getId))
+                .toList();
+        return AssignmentDetailResponse.of(a, skills);
     }
 
     // 4. 수정: 출제자 본인만
@@ -135,15 +145,14 @@ public class AssignmentService {
             throw new CustomException(HttpStatus.BAD_REQUEST, "마감 시간은 현재 이후여야 합니다.");
         }
         List<String> fileKeys = req.fileKeys() == null ? null : attachmentValidator.normalize(req.fileKeys());
-        List<String> competencies = req.competencies() == null ? null
-                : req.competencies().stream().map(String::strip).distinct().toList();
+        Set<Long> skillIds = req.skillIds() == null ? null : validatedSkillIds(req.skillIds());
 
         a.update(req.title() == null ? null : req.title().strip(),
                 req.description() == null ? null : req.description().strip(),
-                req.deadline(), fileKeys, competencies);
+                req.deadline(), fileKeys, skillIds);
     }
 
-    // 5. 삭제: 출제자 또는 부장 (제출물·역량 기록 함께 삭제)
+    // 5. 삭제: 출제자 또는 부장 (제출물 함께 삭제)
     @Transactional
     public void delete(Long memberId, Long assignmentId) {
         Member me = joinedMember(memberId);
@@ -153,9 +162,19 @@ public class AssignmentService {
         if (!(a.isAuthor(me.getId()) || me.isLeader())) {
             throw new CustomException(HttpStatus.FORBIDDEN, "출제자 또는 부장만 삭제할 수 있습니다.");
         }
-        competencyRecordRepository.deleteAllByAssignmentId(assignmentId);
         submissionRepository.deleteAllByAssignmentId(assignmentId);
         assignmentRepository.delete(a);
+    }
+
+    // 존재하고 활성인 스킬만 허용. in 쿼리 1회, 개수가 다르면 없거나 비활성
+    private Set<Long> validatedSkillIds(Set<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Set.of();
+        }
+        if (skillRepository.findAllByIdInAndActiveTrue(ids).size() != ids.size()) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "존재하지 않거나 비활성화된 스킬이 포함되어 있습니다.");
+        }
+        return Set.copyOf(ids);
     }
 
     private Member joinedMember(Long memberId) {

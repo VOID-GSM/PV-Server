@@ -2,6 +2,7 @@ package pv.domain.assignment.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import pv.domain.assignment.entity.AssignmentTargetType;
 import pv.domain.member.entity.Major;
@@ -18,6 +19,7 @@ public record AssignmentCreateRequest(
         Set<Major> targetMajors,
         Set<Long> targetMemberIds,
         @Size(max = 10) List<String> fileKeys,
-        @Size(max = 20) List<@NotBlank @Size(max = 100) String> competencies
+        // 통과 시 실적으로 집계할 스킬 ID (없으면 빈 값)
+        @Size(max = 20) Set<@NotNull @Positive Long> skillIds
 ) {
 }

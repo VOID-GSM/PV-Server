@@ -63,16 +63,20 @@ public class Assignment {
     @JdbcTypeCode(SqlTypes.ARRAY)
     private List<String> fileKeys = new ArrayList<>();
 
-    // 통과 시 기록할 역량 항목 이름
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    private List<String> competencies = new ArrayList<>();
+    // 통과 시 실적으로 집계될 스킬 ID (skills 테이블은 삭제 없이 비활성화만 하므로 FK 없이 ID만 보관)
+    @ElementCollection
+    @CollectionTable(name = "assignment_skills",
+            joinColumns = @JoinColumn(name = "assignment_id"),
+            indexes = @Index(name = "idx_assignment_skills_skill", columnList = "skill_id"))
+    @Column(name = "skill_id", nullable = false)
+    private Set<Long> skillIds = new HashSet<>();
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
     public Assignment(Long teamId, Member author, String title, String description, LocalDateTime deadline,
                       AssignmentTargetType targetType, Set<Major> majors, Set<Long> memberIds,
-                      List<String> fileKeys, List<String> competencies) {
+                      List<String> fileKeys, Set<Long> skillIds) {
         this.teamId = teamId;
         this.author = author;
         this.title = title;
@@ -82,7 +86,7 @@ public class Assignment {
         this.targetMajors.addAll(majors);
         this.targetMemberIds.addAll(memberIds);
         this.fileKeys = new ArrayList<>(fileKeys);
-        this.competencies = new ArrayList<>(competencies);
+        this.skillIds.addAll(skillIds);
         this.createdAt = LocalDateTime.now();
     }
 
@@ -108,11 +112,14 @@ public class Assignment {
 
     // null이 아닌 값만 수정
     public void update(String title, String description, LocalDateTime deadline,
-                       List<String> fileKeys, List<String> competencies) {
+                       List<String> fileKeys, Set<Long> skillIds) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         if (deadline != null) this.deadline = deadline;
         if (fileKeys != null) this.fileKeys = new ArrayList<>(fileKeys);
-        if (competencies != null) this.competencies = new ArrayList<>(competencies);
+        if (skillIds != null) {
+            this.skillIds.clear();
+            this.skillIds.addAll(skillIds);
+        }
     }
 }
