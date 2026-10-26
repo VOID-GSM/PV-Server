@@ -158,16 +158,26 @@ public class NoticeService {
                 LocalDateTime.now(clock));
     }
 
-    // 수신자와 알림을 벌크 쿼리로 먼저 지운 뒤 공지를 삭제한다.
+
     @Transactional
     public void delete(Long loginMemberId, Long noticeId) {
         Notice notice = findNoticeForUpdate(noticeId);
-        requireAuthor(notice, loginMemberId);
+        Member me = getMember(loginMemberId);
+
+        // 작성자 또는 같은 팀의 부장만 삭제 가능
+        boolean isAuthor = notice.isAuthor(loginMemberId);
+        boolean isTeamLeader = me.isLeader()
+                && java.util.Objects.equals(me.getTeamId(), notice.getTeamId());
+
+        if (!isAuthor && !isTeamLeader) {
+            requireAuthor(notice, loginMemberId);
+        }
 
         recipientRepository.deleteAllByNoticeId(noticeId);
         notificationService.deleteByTarget(NotificationType.NOTICE, noticeId);
         noticeRepository.delete(notice);
     }
+
 
     // ===== 읽음 =====
 
