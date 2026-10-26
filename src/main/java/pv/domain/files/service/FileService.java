@@ -150,6 +150,17 @@ public class FileService {
         runAfterCommit(() -> fileStorage.deleteObjects(keys));
     }
 
+    @Transactional
+    public int deleteUnattachedCreatedBefore(Instant threshold, int limit) {
+        List<String> keys = fileRepository.lockUnattachedKeysCreatedBefore(threshold, limit);
+        if (keys.isEmpty()) {
+            return 0;
+        }
+        fileRepository.deleteAllByObjectKeyIn(keys);
+        runAfterCommit(() -> fileStorage.deleteObjects(keys));
+        return keys.size();
+    }
+
     private void verifyUploaded(StoredFile file) {
         long actualSize = fileStorage.findObjectSize(file.getObjectKey())
                 .orElseThrow(() -> FileException.badRequest("스토리지에 업로드가 완료되지 않았습니다."));
