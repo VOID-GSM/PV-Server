@@ -9,12 +9,10 @@ import pv.domain.assignment.dto.projection.*;
 import pv.domain.assignment.dto.request.*;
 import pv.domain.assignment.dto.response.*;
 import pv.domain.assignment.entity.Assignment;
-import pv.domain.assignment.entity.CompetencyRecord;
 import pv.domain.assignment.entity.Submission;
 import pv.domain.assignment.entity.SubmissionStatus;
 import pv.domain.assignment.repository.AssignmentMemberQueryRepository;
 import pv.domain.assignment.repository.AssignmentRepository;
-import pv.domain.assignment.repository.CompetencyRecordRepository;
 import pv.domain.assignment.repository.SubmissionRepository;
 import pv.domain.member.entity.Member;
 import pv.domain.member.repository.MemberRepository;
@@ -32,7 +30,6 @@ import java.util.stream.Collectors;
 public class SubmissionService {
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
-    private final CompetencyRecordRepository competencyRecordRepository;
     private final AssignmentMemberQueryRepository memberQueryRepository;
     private final MemberRepository memberRepository;
     private final AttachmentValidator attachmentValidator;
@@ -121,24 +118,17 @@ public class SubmissionService {
         s.resubmit(blankToNull(req.content()), fileKeys, blankToNull(req.githubUrl()), LocalDateTime.now());
     }
 
-    // 10. 통과: 출제자만, 역량 기록 저장
+    // 10. 통과: 출제자만. 상태 전이만 수행 (역량 실적은 PASSED 제출물 집계로 읽음)
+    // Submission 행 락 + SUBMITTED일 때만 전이 → 같은 제출물의 중복 통과 불가
     @Transactional
     public void pass(Long memberId, Long assignmentId, Long submissionId, ReviewRequest req) {
         Member me = joinedMember(memberId);
         Submission s = lockedSubmission(assignmentId, submissionId);
-        Assignment a = authorOf(me, s);
+        authorOf(me, s);
         if (s.getStatus() != SubmissionStatus.SUBMITTED) {
             throw new CustomException(HttpStatus.CONFLICT, "제출 완료 상태의 제출물만 통과 처리할 수 있습니다.");
         }
-
-        LocalDateTime now = LocalDateTime.now();
-        s.pass(req == null ? null : blankToNull(req.comment()), now);
-
-        Long submitterId = s.getSubmitter().getId();
-        List<CompetencyRecord> records = a.getCompetencies().stream()
-                .map(c -> new CompetencyRecord(a.getTeamId(), submitterId, a.getId(), s.getId(), c, now))
-                .toList();
-        competencyRecordRepository.saveAll(records);
+        s.pass(req == null ? null : blankToNull(req.comment()), LocalDateTime.now());
     }
 
     // 11. 재제출 요청: 출제자만, 코멘트 필수
