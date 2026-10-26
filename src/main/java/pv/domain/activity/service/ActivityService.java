@@ -8,6 +8,7 @@ import pv.domain.activity.dto.request.*;
 import pv.domain.activity.dto.response.*;
 import pv.domain.activity.entity.*;
 import pv.domain.activity.repository.*;
+import pv.domain.attendance.service.AttendanceService;
 import pv.domain.member.entity.Generation;
 import pv.domain.activity.dto.query.*;
 import pv.domain.member.entity.Major;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import java.time.LocalDateTime;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
@@ -51,6 +53,7 @@ public class ActivityService {
     private final TopicVoteRepository voteRepository;
     private final MemberRepository memberRepository;
     private final GenerationRepository generationRepository;
+    private final AttendanceService attendanceService; // [출석]
 
     // ===== 활동 =====
 
@@ -164,7 +167,19 @@ public class ActivityService {
             );
         }
 
-        sessionRepository.saveAll(sessions);
+        // [출석] saveAll 반환값(ID 채워진 엔티티)을 사용
+        List<ActivitySession> saved = sessionRepository.saveAll(sessions);
+
+        // [출석] 개설 시점 참여자는 개설자 1명뿐이므로 멤버 조회 쿼리 없이 바로 전달
+        List<Long> memberIds = List.of(member.getId());
+        for (ActivitySession s : saved) {
+            attendanceService.openSession(
+                    s.getId(),
+                    activity.getId(),
+                    startAtOf(s),
+                    memberIds
+            );
+        }
 
         return ActivitySummaryResponse.of(activity, 1);
     }
@@ -279,6 +294,9 @@ public class ActivityService {
 
         requireManager(member, activityId);
 
+        // [출석] 출석/불참/출석회차를 가장 먼저 삭제
+        attendanceService.deleteAllByActivity(activityId);
+
         voteRepository.deleteAllByActivityId(activityId);
         candidateRepository.deleteAllByActivityId(activityId);
         sessionRepository.deleteAllByActivityId(activityId);
@@ -341,7 +359,11 @@ public class ActivityService {
                             ActivityRole.MEMBER
                     )
             );
+
+            // [출석] 선착순은 즉시 참여 확정
+            attendanceService.addMember(activityId, member.getId());
         } else {
+            // 승인제는 대기 상태이므로 출석 생성 X
             application = applicationRepository.save(
                     new ActivityApplication(
                             activityId,
@@ -432,6 +454,9 @@ public class ActivityService {
                     activityId,
                     member.getId()
             );
+
+            // [출석] 활동 멤버였던 경우에만 (대기 중 신청 취소는 해당 없음)
+            attendanceService.removeMember(activityId, member.getId());
         });
 
         // 신청서가 존재하는 경우에만 삭제
@@ -470,6 +495,9 @@ public class ActivityService {
                         ActivityRole.MEMBER
                 )
         );
+
+        // [출석] 승인 = 참여 확정
+        attendanceService.addMember(activityId, application.getMemberId());
     }
 
     @Transactional
@@ -918,6 +946,14 @@ public class ActivityService {
     }
 
     // ===== 공통 =====
+
+    // [출석] 회차 시작 일시 (시간이 없으면 해당 날짜 00:00)
+    private LocalDateTime startAtOf(ActivitySession session) {
+        LocalTime time = session.getSessionTime();
+        return time == null
+                ? session.getSessionDate().atStartOfDay()
+                : session.getSessionDate().atTime(time);
+    }
 
     // 가입 완료(JOINED)된 팀원만 사용 가능
     private Member getMember(Long loginMemberId) {

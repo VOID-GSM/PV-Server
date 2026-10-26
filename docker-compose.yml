@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pv_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ${PG_DATA_DIR:-./.data/postgres}:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d pv_db" ]
+      interval: 5s
+      retries: 10
+    mem_limit: 512m
+    logging: &logging
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  backend:
+    build: .
+    image: ${BACKEND_IMAGE:-pv-backend:local}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "80:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/pv_db
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SPRING_JPA_SHOW_SQL: "false"
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-pv-files}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
+      STORAGE_PATH_STYLE: ${STORAGE_PATH_STYLE:-false}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75"
+    mem_limit: 1g
+    logging: *logging
