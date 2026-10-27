@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 import pv.domain.imports.entity.ImportJob;
 import org.springframework.data.jpa.repository.Modifying;
 import java.time.LocalDateTime;
+import org.springframework.data.domain.Pageable;
+import java.util.List;
 
 import java.util.Optional;
 
@@ -33,4 +35,14 @@ public interface ImportJobRepository extends JpaRepository<ImportJob, Long> {
                and j.createdAt < :threshold
             """)
     int failStaleJobs(@Param("threshold") LocalDateTime threshold);
+
+    // 오래된 READY job을 잠그고 조회 (그 사이 확정된 job은 제외됨)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select j from ImportJob j
+             where j.status = pv.domain.imports.entity.ImportStatus.READY
+               and j.createdAt < :threshold
+             order by j.id
+            """)
+    List<ImportJob> findExpiredReadyForUpdate(@Param("threshold") LocalDateTime threshold, Pageable pageable);
 }
