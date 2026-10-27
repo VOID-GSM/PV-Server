@@ -12,6 +12,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.util.Objects;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import pv.global.entity.ContentSource;
 
 
 import java.time.LocalDateTime;
@@ -51,6 +54,10 @@ public class Post {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    // 기존 데이터가 있어도 서버가 뜨도록 DB 기본값을 MANUAL로 지정
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false, columnDefinition = "varchar(10) default 'MANUAL'")
+    private ContentSource source;
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -59,7 +66,8 @@ public class Post {
     private LocalDateTime updatedAt;
 
     private Post(Long authorId, Long activityId, Long sessionId,
-                 Long questionId, String title, String content, LocalDateTime createdAt) {
+                 Long questionId, String title, String content,
+                 LocalDateTime createdAt, ContentSource source) {
         this.authorId = authorId;
         this.activityId = activityId;
         this.sessionId = sessionId;
@@ -67,22 +75,20 @@ public class Post {
         this.title = title;
         this.content = content;
         this.createdAt = Objects.requireNonNull(createdAt, "작성일은 필수입니다.");
+        this.source = source;
     }
 
     public static Post create(Long authorId, Long activityId, Long sessionId,
                               Long questionId, String title, String content, LocalDateTime createdAt) {
-        return new Post(authorId, activityId, sessionId, questionId, title, content, createdAt);
-    }
-
-    public static Post create(Long authorId, Long activityId, Long sessionId,
-                              Long questionId, String title, String content) {
-        return new Post(authorId, activityId, sessionId, questionId, title, content, null);
+        return new Post(authorId, activityId, sessionId, questionId, title, content,
+                createdAt, ContentSource.MANUAL);
     }
 
     // 노션 가져오기용: 작성일을 직접 지정
     public static Post createImported(Long authorId, Long activityId,
                                       String title, String content, LocalDateTime createdAt) {
-        return new Post(authorId, activityId, null, null, title, content, createdAt);
+        return new Post(authorId, activityId, null, null, title, content,
+                createdAt, ContentSource.NOTION);
     }
 
     public void update(String title, String content) {

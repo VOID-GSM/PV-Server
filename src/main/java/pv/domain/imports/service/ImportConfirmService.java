@@ -25,6 +25,7 @@ import pv.domain.posts.entity.Post;
 import pv.domain.posts.repository.PostRepository;
 import pv.domain.worklogs.entity.Worklog;
 import pv.domain.worklogs.repository.WorklogRepository;
+import pv.global.entity.ContentSource;
 import pv.global.exception.CustomException;
 
 import java.time.Clock;
@@ -93,6 +94,7 @@ public class ImportConfirmService {
                         .content(doc.getContent())
                         .visibility(item.visibility())
                         .createdAt(createdAt)
+                        .source(ContentSource.NOTION)
                         .build());
                 case INTERVIEW -> interviews.add(item);
             }
@@ -158,7 +160,7 @@ public class ImportConfirmService {
             }
             LocalDateTime createdAt = item.createdAt() != null ? item.createdAt() : now;
             answers.add(new InterviewAnswer(question, memberRepository.getReferenceById(authorId),
-                    doc.getContent(), createdAt));
+                    doc.getContent(), createdAt, ContentSource.NOTION));
         }
         answerRepository.saveAll(answers);
         return new int[]{answers.size(), skipped, unmatched};

@@ -24,6 +24,7 @@ import pv.domain.member.entity.Major;
 import java.util.List;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import pv.global.entity.ContentSource;
 
 @Service
 @RequiredArgsConstructor
