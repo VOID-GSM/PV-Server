@@ -13,6 +13,7 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
+import java.time.Duration;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -63,6 +64,18 @@ public class ImportJob {
         this.contentHash = Objects.requireNonNull(contentHash);
         this.fileName = Objects.requireNonNull(fileName);
         this.status = ImportStatus.PROCESSING;
+    }
+
+    // 이 시간 이상 PROCESSING이면 서버 재시작 등으로 멈춘 것으로 본다
+    public static final Duration STALE_AFTER = Duration.ofMinutes(30);
+
+    // 이 기간 동안 확정하지 않은 READY는 임시 문서와 함께 삭제한다
+    public static final Duration READY_EXPIRE_AFTER = Duration.ofDays(7);
+
+    public boolean isStale(LocalDateTime now) {
+        return status == ImportStatus.PROCESSING
+                && createdAt.isBefore(now.minus(STALE_AFTER));
+
     }
 
     public boolean isOwnedBy(Long memberId) {

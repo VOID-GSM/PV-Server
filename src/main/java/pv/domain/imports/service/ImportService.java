@@ -30,6 +30,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +39,7 @@ public class ImportService {
 
     private static final long MAX_UPLOAD_BYTES = 50L * 1024 * 1024;
 
+    private final Clock clock;
     private final ImportJobRepository jobRepository;
     private final ImportDocumentRepository documentRepository;
     private final MemberRepository memberRepository;
@@ -87,11 +90,13 @@ public class ImportService {
         Optional<ImportJob> existing = jobRepository.findByMemberIdAndContentHash(memberId, hash);
         if (existing.isPresent()) {
             ImportJob old = existing.get();
-            if (old.getStatus() != ImportStatus.FAILED) {
+            boolean retryable = old.getStatus() == ImportStatus.FAILED
+                    || old.isStale(LocalDateTime.now(clock)); // 오래 멈춘 PROCESSING도 재시도 허용
+            if (!retryable) {
                 throw new CustomException(HttpStatus.CONFLICT,
                         "이미 업로드한 파일입니다. (importId=" + old.getId() + ")");
             }
-            jobRepository.deleteById(old.getId()); // 실패한 기록은 지우고 다시 시도
+            jobRepository.deleteById(old.getId()); // 실패·멈춘 기록은 지우고 다시 시도
         }
         try {
             return jobRepository.saveAndFlush(new ImportJob(memberId, hash, fileName));
