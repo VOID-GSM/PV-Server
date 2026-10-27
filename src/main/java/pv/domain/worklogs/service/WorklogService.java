@@ -18,6 +18,8 @@ import pv.domain.worklogs.entity.Worklog;
 import pv.domain.worklogs.repository.WorklogRepository;
 import pv.domain.member.entity.Member;
 import pv.domain.member.entity.MemberStatus;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,7 @@ public class WorklogService {
     private final WorklogRepository worklogRepository;
     private final MemberRepository memberRepository;
     private final BoardRepository boardRepository;
+    private final Clock clock;
 
     public Page<WorklogResponse> getList(Long memberId, Long boardId, Pageable pageable) {
         validateApproved(memberId);
@@ -45,6 +48,7 @@ public class WorklogService {
                 .title(request.title())
                 .content(request.content())
                 .visibility(request.visibility())
+                .createdAt(LocalDateTime.now(clock))
                 .build();
         return worklogRepository.save(worklog).getId();
     }

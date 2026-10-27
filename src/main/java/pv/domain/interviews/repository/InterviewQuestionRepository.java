@@ -29,4 +29,5 @@ public interface InterviewQuestionRepository extends JpaRepository<InterviewQues
     List<InterviewQuestion> findRandom(@Param("major") Major major, @Param("category") InterviewCategory category, Pageable limit);
     Optional<InterviewQuestion> findByContent(String content);
     boolean existsByContent(String content);
+    List<InterviewQuestion> findAllByContentIn(java.util.Collection<String> contents);
 }

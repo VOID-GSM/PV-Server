@@ -14,10 +14,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import pv.domain.board.entity.Board;
 import pv.domain.member.entity.Member;
+import pv.global.entity.ContentSource;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -47,7 +47,10 @@ public class Worklog {
     @Column(nullable = false, length = 10)
     private Visibility visibility;
 
-    @CreationTimestamp
+    // 기존 데이터가 있어도 서버가 뜨도록 DB 기본값을 MANUAL로 지정
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false, columnDefinition = "varchar(10) default 'MANUAL'")
+    private ContentSource source;
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
@@ -55,12 +58,15 @@ public class Worklog {
     private LocalDateTime updatedAt;
 
     @Builder
-    private Worklog(Member author, Board board, String title, String content, Visibility visibility) {
+    private Worklog(Member author, Board board, String title, String content,
+                    Visibility visibility, LocalDateTime createdAt, ContentSource source) {
         this.author = Objects.requireNonNull(author, "작성자는 필수입니다.");
         this.board = board;
         this.title = Objects.requireNonNull(title, "제목은 필수입니다.");
         this.content = Objects.requireNonNull(content, "내용은 필수입니다.");
         this.visibility = (visibility != null) ? visibility : Visibility.PRIVATE;
+        this.createdAt = Objects.requireNonNull(createdAt, "작성일은 필수입니다.");
+        this.source = (source != null) ? source : ContentSource.MANUAL;
     }
 
     public void update(String title, String content, Visibility visibility) {

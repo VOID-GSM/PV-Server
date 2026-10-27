@@ -27,6 +27,8 @@ import org.springframework.data.domain.Sort;
 import java.util.Set;
 import static pv.domain.posts.repository.PostSpecs.*;
 import java.util.List;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +39,7 @@ public class PostService {
     private final ActivitySessionRepository activitySessionRepository;
     private final ActivityMemberRepository activityMemberRepository;
     private final InterviewQuestionRepository interviewQuestionRepository;
+    private final Clock clock;
 
     private static final Set<String> ALLOWED_SORT_PROPERTIES = Set.of("createdAt", "id");
 
@@ -68,12 +71,13 @@ public class PostService {
             throw new CustomException(HttpStatus.NOT_FOUND, "면접 질문이 없습니다.");
         }
         Post post = Post.create(
-                member.getId(), 
+                member.getId(),
                 activityId,
                 req.sessionId(),
                 req.questionId(),
                 req.title(),
-                req.content()
+                req.content(),
+                LocalDateTime.now(clock)
         );
         return PostResponse.from(postRepository.save(post));
     }
