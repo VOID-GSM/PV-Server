@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import pv.domain.imports.dto.response.ImportCreateResponse;
 import pv.domain.imports.dto.response.ImportStatusResponse;
-import pv.domain.imports.entity.ImportDocument;
 import pv.domain.imports.entity.ImportJob;
 import pv.domain.imports.entity.ImportStatus;
 import pv.domain.imports.repository.ImportDocumentRepository;
@@ -18,6 +17,7 @@ import pv.domain.member.entity.Member;
 import pv.domain.member.entity.MemberStatus;
 import pv.domain.member.repository.MemberRepository;
 import pv.global.exception.CustomException;
+import pv.domain.imports.dto.response.ImportDocumentPreview;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -80,8 +80,8 @@ public class ImportService {
         validateJoined(memberId);
         ImportJob job = jobRepository.findByIdAndMemberId(importId, memberId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "가져오기 기록을 찾을 수 없습니다."));
-        List<ImportDocument> documents = job.getStatus() == ImportStatus.READY
-                ? documentRepository.findAllByImportIdOrderByIdAsc(job.getId())
+        List<ImportDocumentPreview> documents = job.getStatus() == ImportStatus.READY
+                ? documentRepository.findPreviewsByImportId(job.getId())
                 : List.of();
         return ImportStatusResponse.of(job, documents);
     }

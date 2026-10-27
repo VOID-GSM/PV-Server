@@ -1,6 +1,5 @@
 package pv.domain.imports.dto.response;
 
-import pv.domain.imports.entity.ImportDocument;
 import pv.domain.imports.entity.ImportJob;
 import pv.domain.imports.entity.ImportStatus;
 
@@ -15,14 +14,14 @@ public record ImportStatusResponse(
         LocalDateTime createdAt,
         List<ImportDocumentPreview> documents
 ) {
-    public static ImportStatusResponse of(ImportJob job, List<ImportDocument> documents) {
+    public static ImportStatusResponse of(ImportJob job, List<ImportDocumentPreview> documents) {
         return new ImportStatusResponse(
                 job.getId(),
                 job.getStatus(),
                 job.getFileName(),
                 job.getFailReason(),
                 job.getCreatedAt(),
-                documents.stream().map(ImportDocumentPreview::from).toList()
+                documents
         );
     }
 }
