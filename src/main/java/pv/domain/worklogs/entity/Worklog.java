@@ -60,7 +60,7 @@ public class Worklog {
         this.title = Objects.requireNonNull(title, "제목은 필수입니다.");
         this.content = Objects.requireNonNull(content, "내용은 필수입니다.");
         this.visibility = (visibility != null) ? visibility : Visibility.PRIVATE;
-        this.createdAt = (createdAt != null) ? createdAt : LocalDateTime.now();
+        this.createdAt = Objects.requireNonNull(createdAt, "작성일은 필수입니다.");
     }
 
     public void update(String title, String content, Visibility visibility) {

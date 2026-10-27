@@ -11,6 +11,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
+import java.util.Objects;
+
 
 import java.time.LocalDateTime;
 
@@ -64,7 +66,12 @@ public class Post {
         this.questionId = questionId;
         this.title = title;
         this.content = content;
-        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
+        this.createdAt = Objects.requireNonNull(createdAt, "작성일은 필수입니다.");
+    }
+
+    public static Post create(Long authorId, Long activityId, Long sessionId,
+                              Long questionId, String title, String content, LocalDateTime createdAt) {
+        return new Post(authorId, activityId, sessionId, questionId, title, content, createdAt);
     }
 
     public static Post create(Long authorId, Long activityId, Long sessionId,

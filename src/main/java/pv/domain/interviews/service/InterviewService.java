@@ -22,6 +22,8 @@ import pv.domain.member.repository.MemberRepository;
 import pv.domain.member.entity.Major;
 
 import java.util.List;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class InterviewService {
     private final InterviewQuestionRepository questionRepository;
     private final InterviewAnswerRepository answerRepository;
     private final MemberRepository memberRepository;
+    private final Clock clock;
 
     public List<QuestionResponse> getQuestions(Major major, InterviewCategory category) {
         return questionRepository.search(major, category).stream().map(QuestionResponse::from).toList();
@@ -87,7 +90,7 @@ public class InterviewService {
 
         try {
             InterviewAnswer saved = answerRepository.saveAndFlush(
-                    new InterviewAnswer(question, member, req.content()));
+                    new InterviewAnswer(question, member, req.content(), LocalDateTime.now(clock)));
             return AnswerResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(HttpStatus.CONFLICT, "이미 답변한 질문입니다.");

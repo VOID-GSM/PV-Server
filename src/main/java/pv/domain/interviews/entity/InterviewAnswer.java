@@ -49,12 +49,11 @@ public class InterviewAnswer {
         this(question, member, content, null);
     }
 
-    // 노션 가져오기용: 작성일을 직접 지정
     public InterviewAnswer(InterviewQuestion question, Member member, String content, LocalDateTime createdAt) {
         this.question = Objects.requireNonNull(question, "질문은 필수입니다.");
         this.member = Objects.requireNonNull(member, "회원은 필수입니다.");
         this.content = Objects.requireNonNull(content, "답변 내용은 필수입니다.");
-        this.createdAt = (createdAt != null) ? createdAt : LocalDateTime.now();
+        this.createdAt = Objects.requireNonNull(createdAt, "작성일은 필수입니다.");
     }
 
     public void updateContent(String content) {
