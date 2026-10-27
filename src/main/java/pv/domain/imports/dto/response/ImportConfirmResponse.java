@@ -5,6 +5,7 @@ public record ImportConfirmResponse(
         int postCount,
         int worklogCount,
         int interviewCount,
-        int skippedCount
+        int skippedCount,
+        int unmatchedCount
 ) {
 }

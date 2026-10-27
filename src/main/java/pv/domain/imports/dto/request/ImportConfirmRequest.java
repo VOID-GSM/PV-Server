@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import pv.domain.interviews.entity.InterviewCategory;
 import pv.domain.worklogs.entity.Visibility;
 
 import java.time.LocalDateTime;
@@ -30,9 +29,6 @@ public record ImportConfirmRequest(
 
             // 비우면 현재 시각
             LocalDateTime createdAt,
-
-            // 면접 질문일 때 필수
-            InterviewCategory category,
 
             // 업무일지일 때만 사용, 비우면 PRIVATE
             Visibility visibility

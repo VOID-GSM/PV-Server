@@ -107,19 +107,19 @@ public class ImportConfirmService {
             job.confirm();
 
             return new ImportConfirmResponse(importId, posts.size(), worklogs.size(),
-                    interviewResult[0], interviewResult[1]);
+                    interviewResult[0], interviewResult[1], interviewResult[2]);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(HttpStatus.CONFLICT,
                     "다른 요청과 충돌했습니다. 잠시 후 다시 시도해주세요.");
         }
     }
 
-    // 면접 질문: 같은 내용의 질문은 재사용, 같은 사람의 기존 답변이 있으면 건너뜀
-    // 반환값: [저장된 개수, 건너뛴 개수]
+    // 면접 질문: 기존 질문과 내용이 일치할 때만 답변을 연결 (공용 질문 풀이라 새 질문은 만들지 않음)
+    // 반환값: [저장된 개수, 이미 답변이 있어 건너뛴 개수, 일치하는 질문이 없어 건너뛴 개수]
     private int[] saveInterviews(List<ImportConfirmRequest.Item> interviews,
                                  Map<Long, ImportDocument> docs, Long memberId, LocalDateTime now) {
         if (interviews.isEmpty()) {
-            return new int[]{0, 0};
+            return new int[]{0, 0, 0};
         }
 
         Set<String> contents = interviews.stream()
@@ -128,39 +128,30 @@ public class ImportConfirmService {
 
         Map<String, InterviewQuestion> questions = questionRepository.findAllByContentIn(contents).stream()
                 .collect(Collectors.toMap(InterviewQuestion::getContent, Function.identity()));
-
-        // 없는 질문만 새로 생성 (카테고리는 처음 나온 항목 기준)
-        Map<String, InterviewQuestion> toCreate = new HashMap<>();
-        for (ImportConfirmRequest.Item item : interviews) {
-            String content = docs.get(item.documentId()).getTitle().strip();
-            if (!questions.containsKey(content) && !toCreate.containsKey(content)) {
-                toCreate.put(content, new InterviewQuestion(content, null, item.category()));
-            }
-        }
-        if (!toCreate.isEmpty()) {
-            questionRepository.saveAll(toCreate.values());
-            questions.putAll(toCreate);
+        if (questions.isEmpty()) {
+            return new int[]{0, 0, interviews.size()};
         }
 
         // 이미 답변이 있는 (질문, 회원) 쌍을 한 번에 조회
-        Set<String> answered = new HashSet<>();
-        Set<Long> existingQuestionIds = questions.values().stream()
+        Set<Long> questionIds = questions.values().stream()
                 .map(InterviewQuestion::getId)
-                .filter(id -> !toCreate.values().stream().anyMatch(q -> q.getId().equals(id)))
                 .collect(Collectors.toSet());
-        if (!existingQuestionIds.isEmpty()) {
-            for (Object[] row : answerRepository.findAnsweredPairs(existingQuestionIds)) {
-                answered.add(row[0] + ":" + row[1]);
-            }
+        Set<String> answered = new HashSet<>();
+        for (Object[] row : answerRepository.findAnsweredPairs(questionIds)) {
+            answered.add(row[0] + ":" + row[1]);
         }
 
         List<InterviewAnswer> answers = new ArrayList<>();
         int skipped = 0;
+        int unmatched = 0;
         for (ImportConfirmRequest.Item item : interviews) {
             ImportDocument doc = docs.get(item.documentId());
             InterviewQuestion question = questions.get(doc.getTitle().strip());
+            if (question == null) {
+                unmatched++;
+                continue;
+            }
             Long authorId = item.authorId() != null ? item.authorId() : memberId;
-
             if (!answered.add(question.getId() + ":" + authorId)) {
                 skipped++;
                 continue;
@@ -170,7 +161,7 @@ public class ImportConfirmService {
                     doc.getContent(), createdAt));
         }
         answerRepository.saveAll(answers);
-        return new int[]{answers.size(), skipped};
+        return new int[]{answers.size(), skipped, unmatched};
     }
 
     private void checkStatus(ImportJob job) {
@@ -193,9 +184,6 @@ public class ImportConfirmService {
             if (!seen.add(item.documentId())) {
                 throw new CustomException(HttpStatus.BAD_REQUEST,
                         "같은 문서를 중복 지정할 수 없습니다. (documentId=" + item.documentId() + ")");
-            }
-            if (item.type() == ImportDocumentType.INTERVIEW && item.category() == null) {
-                throw new CustomException(HttpStatus.BAD_REQUEST, "면접 질문은 카테고리가 필요합니다.");
             }
         }
     }
