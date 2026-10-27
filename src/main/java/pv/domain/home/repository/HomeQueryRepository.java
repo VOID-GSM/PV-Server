@@ -44,7 +44,7 @@ public class HomeQueryRepository {
 
     public List<SessionTodoRow> findVoteCandidates(Long memberId, LocalDate today) {
         return em.createQuery("""
-                        select new pv.domain.home.dto.SessionTodoRow(
+                        select new pv.domain.home.repository.SessionTodoRow(
                             s.id, a.name, s.sessionDate, a.topicOpenDaysBefore)
                         from ActivitySession s, Activity a, ActivityMember am
                         where a.id = s.activityId
