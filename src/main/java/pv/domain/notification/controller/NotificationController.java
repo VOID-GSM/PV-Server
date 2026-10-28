@@ -12,6 +12,7 @@ import pv.domain.notification.dto.response.NotificationSettingsResponse;
 import pv.domain.notification.service.NotificationService;
 import pv.domain.notification.dto.request.DiscordWebhookUpdateRequest;
 import pv.domain.notification.service.DiscordSettingService;
+import pv.domain.notification.dto.response.DiscordWebhookStatusResponse;
 
 @RestController
 @RequestMapping("/notifications")
@@ -65,6 +66,13 @@ public class NotificationController {
             @Valid @RequestBody NotificationSettingUpdateRequest request) {
         notificationService.updateSetting(loginMemberId, request);
         return ResponseEntity.noContent().build();
+    }
+
+    // 디스코드 웹훅 등록 여부 조회
+    @GetMapping("/discord")
+    public ResponseEntity<DiscordWebhookStatusResponse> getDiscordStatus(
+            @AuthenticationPrincipal Long loginMemberId) {
+        return ResponseEntity.ok(discordSettingService.getStatus(loginMemberId));
     }
 
     // 디스코드 웹훅 URL 설정 및 변경 (부장 전용)

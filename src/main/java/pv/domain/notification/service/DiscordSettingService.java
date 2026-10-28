@@ -14,6 +14,7 @@ import pv.domain.notification.repository.DiscordSettingRepository;
 import pv.global.exception.CustomException;
 
 import java.util.Optional;
+import pv.domain.notification.dto.response.DiscordWebhookStatusResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -47,5 +48,20 @@ public class DiscordSettingService {
     public Optional<String> findWebhookUrl(Long teamId) {
         return discordSettingRepository.findByTeamId(teamId)
                 .map(DiscordSetting::getWebhookUrl);
+    }
+
+    // 가입 승인된 팀원이면 누구나 등록 여부만 조회할 수 있다.
+    public DiscordWebhookStatusResponse getStatus(Long loginMemberId) {
+        Member me = memberRepository.findById(loginMemberId)
+                .orElseThrow(() -> new CustomException(
+                        HttpStatus.NOT_FOUND, "존재하지 않는 멤버입니다."));
+
+        if (!me.isJoined()) {
+            throw new CustomException(
+                    HttpStatus.FORBIDDEN, "가입 승인 후 이용할 수 있습니다.");
+        }
+
+        return new DiscordWebhookStatusResponse(
+                discordSettingRepository.findByTeamId(me.getTeamId()).isPresent());
     }
 }
