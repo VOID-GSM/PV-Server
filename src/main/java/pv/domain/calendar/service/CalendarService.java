@@ -21,12 +21,12 @@ import java.util.*;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
+import static pv.global.exception.TimeZones.KST;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CalendarService {
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final long MAX_RANGE_DAYS = 92;
     private static final List<Long> NONE = List.of(-1L);
 
@@ -94,12 +94,9 @@ public class CalendarService {
     }
 
     private CalendarEvent findOwned(Long memberId, Long eventId) {
-        CalendarEvent event = eventRepository.findById(eventId)
+        return eventRepository.findById(eventId)
+                .filter(e -> e.isPersonalOf(memberId))
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."));
-        if (!event.isPersonalOf(memberId)) {
-            throw new CustomException(HttpStatus.FORBIDDEN, "본인의 개인 일정만 수정할 수 있습니다.");
-        }
-        return event;
     }
 
     private static void validateRange(LocalDate from, LocalDate to) {
