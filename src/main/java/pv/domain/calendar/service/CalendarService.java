@@ -77,14 +77,14 @@ public class CalendarService {
     @Transactional
     public EventResponse update(Long memberId, Long eventId, EventUpdateRequest req) {
         CalendarEvent event = findOwned(memberId, eventId);
-        event.update(req.title(), req.memo(), req.startsAt(), req.endsAt(), req.allDay());
+        event.update(req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
         return EventResponse.from(event);
     }
 
     @Transactional
     public EventResponse create(Long memberId, EventCreateRequest req) {
         CalendarEvent event = CalendarEvent.personal(
-                memberId, req.title(), req.memo(), req.startsAt(), req.endsAt(), req.allDay());
+                memberId, req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
         return EventResponse.from(eventRepository.save(event));
     }
 
@@ -94,9 +94,12 @@ public class CalendarService {
     }
 
     private CalendarEvent findOwned(Long memberId, Long eventId) {
-        return eventRepository.findById(eventId)
-                .filter(e -> e.isPersonalOf(memberId))
+        CalendarEvent event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."));
+        if (!event.isPersonalOf(memberId)) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "본인의 개인 일정만 수정할 수 있습니다.");
+        }
+        return event;
     }
 
     private static void validateRange(LocalDate from, LocalDate to) {
@@ -110,6 +113,10 @@ public class CalendarService {
 
     private static Instant startOf(LocalDate date) {
         return date.atStartOfDay(KST).toInstant();
+    }
+
+    private static Instant toInstant(LocalDateTime kst) {
+        return kst == null ? null : kst.atZone(KST).toInstant();
     }
 
     private static LocalDate weekStartOf(Instant instant) {
