@@ -3,9 +3,8 @@ package pv.domain.calendar.dto;
 import pv.domain.calendar.entity.CalendarEvent;
 import pv.domain.calendar.entity.EventType;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import static pv.global.exception.TimeZones.KST;
 
 public record EventResponse(
         Long id,
@@ -18,8 +17,6 @@ public record EventResponse(
         Long boardId,
         Long activityId
 ) {
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-
     public static EventResponse from(CalendarEvent e) {
         return new EventResponse(e.getId(), e.getType(), e.getTitle(), e.getMemo(),
                 LocalDateTime.ofInstant(e.getStartsAt(), KST),
