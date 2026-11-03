@@ -21,12 +21,12 @@ import java.util.*;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
+import static pv.global.exception.TimeZones.KST;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CalendarService {
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final long MAX_RANGE_DAYS = 92;
     private static final List<Long> NONE = List.of(-1L);
 
@@ -77,14 +77,14 @@ public class CalendarService {
     @Transactional
     public EventResponse update(Long memberId, Long eventId, EventUpdateRequest req) {
         CalendarEvent event = findOwned(memberId, eventId);
-        event.update(req.title(), req.memo(), req.startsAt(), req.endsAt(), req.allDay());
+        event.update(req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
         return EventResponse.from(event);
     }
 
     @Transactional
     public EventResponse create(Long memberId, EventCreateRequest req) {
         CalendarEvent event = CalendarEvent.personal(
-                memberId, req.title(), req.memo(), req.startsAt(), req.endsAt(), req.allDay());
+                memberId, req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
         return EventResponse.from(eventRepository.save(event));
     }
 
@@ -110,6 +110,10 @@ public class CalendarService {
 
     private static Instant startOf(LocalDate date) {
         return date.atStartOfDay(KST).toInstant();
+    }
+
+    private static Instant toInstant(LocalDateTime kst) {
+        return kst == null ? null : kst.atZone(KST).toInstant();
     }
 
     private static LocalDate weekStartOf(Instant instant) {
