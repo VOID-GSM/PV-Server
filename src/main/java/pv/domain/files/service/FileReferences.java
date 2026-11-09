@@ -6,7 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class FileReferences {
-    private static final Pattern FILE_REF = Pattern.compile("\\(file:(\\d+)\\)");
+    private static final Pattern FILE_REF = Pattern.compile("\\(file:(\\d{1,18})\\)");
 
     private FileReferences() {
     }

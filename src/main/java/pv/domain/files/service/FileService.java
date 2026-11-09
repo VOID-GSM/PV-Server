@@ -171,6 +171,11 @@ public class FileService {
         return keys.size();
     }
 
+    /**
+     * S3 태그 제거는 일부러 DB 커밋 전에 한다.
+     * - 커밋 전 제거 후 롤백: 태그 없는 미첨부 파일이 남음 → 정리 스케줄러가 삭제, 재첨부도 정상 동작 (안전)
+     * - 커밋 후 제거가 실패: DB는 첨부됨인데 temp 태그가 남음 → lifecycle이 사용 중인 파일을 삭제 (위험)
+     */
     private void attachFiles(Long memberId, Collection<StoredFile> files) {
         for (StoredFile file : files) {
             if (!file.isOwnedBy(memberId)) {
