@@ -16,7 +16,7 @@ public interface FileRepository extends JpaRepository<StoredFile, Long> {
 
     List<StoredFile> findAllByObjectKeyIn(Collection<String> objectKeys);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query("delete from StoredFile f where f.objectKey in :objectKeys")
     int deleteAllByObjectKeyIn(@Param("objectKeys") Collection<String> objectKeys);
 
