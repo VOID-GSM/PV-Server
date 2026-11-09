@@ -254,6 +254,10 @@ public class ActivityService {
 
         requireManager(member, activityId);
 
+        if (request.startDate() != null || request.endDate() != null) {
+            throw error(HttpStatus.BAD_REQUEST, "활동 기간은 수정할 수 없습니다.");
+        }
+
         if (request.targetGenerationIds() != null) {
             validateGenerations(member, request.targetGenerationIds());
         }
@@ -267,15 +271,13 @@ public class ActivityService {
             );
         }
 
-        // 기간은 회차가 이미 생성돼 있어 수정하지 않는다.
+        // 기간은 회차가 이미 생성돼 있어 수정할 수 없다.
         activity.update(
                 request.name(),
                 request.description(),
                 request.targetMajors(),
                 request.targetGenerationIds(),
-                request.capacity(),
-                null,
-                null
+                request.capacity()
         );
 
         if (request.status() != null) {
@@ -473,6 +475,7 @@ public class ActivityService {
         Activity activity = getActivityForUpdate(member, activityId);
 
         requireManager(member, activityId);
+
 
         ActivityApplication application =
                 findApplication(applicationId, activityId);
