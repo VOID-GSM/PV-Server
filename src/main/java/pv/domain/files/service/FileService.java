@@ -116,33 +116,36 @@ public class FileService {
         }
         Map<String, StoredFile> files = fileRepository.findAllByObjectKeyIn(objectKeys).stream()
                 .collect(Collectors.toMap(StoredFile::getObjectKey, Function.identity()));
-
         for (String key : objectKeys) {
-            StoredFile file = files.get(key);
-            if (file == null) {
+            if (!files.containsKey(key)) {
                 throw FileException.badRequest("존재하지 않는 파일입니다: " + key);
             }
-            if (!file.isOwnedBy(memberId)) {
-                throw FileException.forbidden();
-            }
         }
+        attachFiles(memberId, files.values());
+    }
 
-        Instant now = Instant.now();
-        for (String key : objectKeys) {
-            StoredFile file = files.get(key);
-            if (!file.isUploaded()) {
-                verifyUploaded(file);
-                file.markUploaded(now);
-            }
-
-            if (!fileStorage.removeTempTag(key)) {
-                throw FileException.badRequest(
-                        "업로드되지 않았거나 만료된 파일입니다: " + key
-                );
-            }
-
-            file.markAttached(now);
+    @Transactional
+    public void attachByIds(Long memberId, Collection<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return;
         }
+        List<Long> ids = fileIds.stream().distinct().toList();
+        List<StoredFile> files = fileRepository.findAllById(ids);
+        if (files.size() != ids.size()) {
+            throw FileException.badRequest("존재하지 않거나 삭제된 파일이 포함되어 있습니다.");
+        }
+        attachFiles(memberId, files);
+    }
+
+    @Transactional
+    public void deleteByIds(Collection<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return;
+        }
+        List<String> keys = fileRepository.findAllById(fileIds.stream().distinct().toList()).stream()
+                .map(StoredFile::getObjectKey)
+                .toList();
+        deleteByKeys(keys);
     }
 
     @Transactional
@@ -155,6 +158,7 @@ public class FileService {
         runAfterCommit(() -> fileStorage.deleteObjects(keys));
     }
 
+
     @Transactional
     public int deleteUnattachedCreatedBefore(Instant threshold, int limit) {
         List<String> keys = fileRepository.lockUnattachedKeysCreatedBefore(threshold, limit);
@@ -164,6 +168,25 @@ public class FileService {
         fileRepository.deleteAllByObjectKeyIn(keys);
         runAfterCommit(() -> fileStorage.deleteObjects(keys));
         return keys.size();
+    }
+
+    private void attachFiles(Long memberId, Collection<StoredFile> files) {
+        for (StoredFile file : files) {
+            if (!file.isOwnedBy(memberId)) {
+                throw FileException.forbidden();
+            }
+        }
+        Instant now = Instant.now();
+        for (StoredFile file : files) {
+            if (!file.isUploaded()) {
+                verifyUploaded(file);
+                file.markUploaded(now);
+            }
+            if (!fileStorage.removeTempTag(file.getObjectKey())) {
+                throw FileException.badRequest("업로드되지 않았거나 만료된 파일입니다: " + file.getId());
+            }
+            file.markAttached(now);
+        }
     }
 
     private void verifyUploaded(StoredFile file) {
