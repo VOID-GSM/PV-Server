@@ -12,6 +12,7 @@ import pv.domain.calendar.entity.EventType;
 import pv.domain.calendar.port.CalendarMembershipPort;
 import pv.domain.calendar.port.CalendarDeadlinePort;
 import pv.domain.calendar.port.CalendarDeadlinePort.DeadlineView;
+import pv.domain.calendar.port.CalendarSessionPort;
 import pv.domain.calendar.repository.CalendarEventRepository;
 import org.springframework.http.HttpStatus;
 import pv.global.exception.CustomException;
@@ -35,6 +36,7 @@ public class CalendarService {
     private final CalendarEventRepository eventRepository;
     private final CalendarMembershipPort membership;
     private final CalendarDeadlinePort deadlinePort;
+    private final CalendarSessionPort sessionPort;
 
     public List<EventResponse> getCalendar(Long memberId, LocalDate from, LocalDate to,
                                            Set<Long> boardFilter, boolean mine) {
@@ -57,6 +59,10 @@ public class CalendarService {
 
         deadlinePort.findDeadlines(boards, from, to).stream()
                 .filter(d -> !mine || memberId.equals(d.assigneeId()))
+                .map(EventResponse::from)
+                .forEach(events::add);
+
+        sessionPort.findSessions(activities, from, to).stream()
                 .map(EventResponse::from)
                 .forEach(events::add);
 
