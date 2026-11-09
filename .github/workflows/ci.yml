@@ -34,6 +34,15 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Gradle 준비 (재시도)
+        run: |
+          for i in 1 2 3; do
+            ./gradlew --version && exit 0
+            echo "Gradle 다운로드 실패 ($i/3), 30초 후 재시도"
+            sleep 30
+          done
+          exit 1
+
       - name: Build
         run: ./gradlew build
 
