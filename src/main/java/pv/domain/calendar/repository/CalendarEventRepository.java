@@ -29,15 +29,4 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
                                      @Param("boardIds") Collection<Long> boardIds,
                                      @Param("activityIds") Collection<Long> activityIds,
                                      @Param("personal") EventType personal);
-
-    @Query("""
-            select e from CalendarEvent e
-            where e.type = :deadline and e.boardId in :boardIds
-              and e.startsAt >= :from and e.startsAt < :to
-            order by e.startsAt
-            """)
-    List<CalendarEvent> findDeadlines(@Param("boardIds") Collection<Long> boardIds,
-                                      @Param("from") Instant from,
-                                      @Param("to") Instant to,
-                                      @Param("deadline") EventType deadline);
 }
