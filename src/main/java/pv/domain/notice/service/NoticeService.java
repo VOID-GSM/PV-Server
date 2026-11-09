@@ -28,6 +28,8 @@ import pv.domain.notice.repository.NoticeRepository;
 import pv.domain.notification.entity.NotificationType;
 import pv.domain.notification.service.NotificationService;
 import pv.global.exception.CustomException;
+import pv.domain.files.service.FileReferences;
+import pv.domain.files.service.FileService;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -59,6 +61,7 @@ public class NoticeService {
     private final GenerationRepository generationRepository;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final FileService fileService;
 
     // ===== 목록 / 상세 =====
 
@@ -133,9 +136,12 @@ public class NoticeService {
             }
         }
 
+        String content = request.content().trim();
+        fileService.attachByIds(me.getId(), FileReferences.extractFileIds(content));
+
         Notice notice = noticeRepository.save(new Notice(
                 me.getTeamId(), me.getId(), scope, boardId, activityId, generationIds, majors,
-                request.title().trim(), request.content().trim(), LocalDateTime.now(clock)));
+                request.title().trim(), content, LocalDateTime.now(clock)));
 
         List<Long> recipientIds = resolveRecipients(me, scope, activityId, generationIds, majors);
         insertRecipients(notice.getId(), recipientIds);
@@ -162,9 +168,18 @@ public class NoticeService {
         Notice notice = findNoticeForUpdate(noticeId);
         requireAuthor(notice, loginMemberId);
 
+        String content = request.content() == null ? null : request.content().trim();
+        if (content != null) {
+            Set<Long> before = FileReferences.extractFileIds(notice.getContent());
+            Set<Long> after = FileReferences.extractFileIds(content);
+            fileService.attachByIds(loginMemberId, after);
+            before.removeAll(after);
+            fileService.deleteByIds(before);
+        }
+
         notice.update(
                 request.title() == null ? null : request.title().trim(),
-                request.content() == null ? null : request.content().trim(),
+                content,
                 LocalDateTime.now(clock));
     }
 
@@ -185,6 +200,7 @@ public class NoticeService {
 
         recipientRepository.deleteAllByNoticeId(noticeId);
         notificationService.deleteByTarget(NotificationType.NOTICE, noticeId);
+        fileService.deleteByIds(FileReferences.extractFileIds(notice.getContent()));
         noticeRepository.delete(notice);
     }
 
