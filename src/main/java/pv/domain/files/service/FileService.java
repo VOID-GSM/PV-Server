@@ -116,33 +116,37 @@ public class FileService {
         }
         Map<String, StoredFile> files = fileRepository.findAllByObjectKeyIn(objectKeys).stream()
                 .collect(Collectors.toMap(StoredFile::getObjectKey, Function.identity()));
-
         for (String key : objectKeys) {
-            StoredFile file = files.get(key);
-            if (file == null) {
+            if (!files.containsKey(key)) {
                 throw FileException.badRequest("존재하지 않는 파일입니다: " + key);
             }
-            if (!file.isOwnedBy(memberId)) {
-                throw FileException.forbidden();
-            }
         }
+        attachFiles(memberId, files.values());
+    }
 
-        Instant now = Instant.now();
-        for (String key : objectKeys) {
-            StoredFile file = files.get(key);
-            if (!file.isUploaded()) {
-                verifyUploaded(file);
-                file.markUploaded(now);
-            }
-
-            if (!fileStorage.removeTempTag(key)) {
-                throw FileException.badRequest(
-                        "업로드되지 않았거나 만료된 파일입니다: " + key
-                );
-            }
-
-            file.markAttached(now);
+    @Transactional
+    public void attachByIds(Long memberId, Collection<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return;
         }
+        List<Long> ids = fileIds.stream().distinct().toList();
+        List<StoredFile> files = fileRepository.findAllById(ids);
+        if (files.size() != ids.size()) {
+            throw FileException.badRequest("존재하지 않거나 삭제된 파일이 포함되어 있습니다.");
+        }
+        attachFiles(memberId, files);
+    }
+
+    @Transactional
+    public void deleteByIds(Long ownerId, Collection<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return;
+        }
+        List<String> keys = fileRepository.findAllById(fileIds.stream().distinct().toList()).stream()
+                .filter(file -> file.isOwnedBy(ownerId))
+                .map(StoredFile::getObjectKey)
+                .toList();
+        deleteByKeys(keys);
     }
 
     @Transactional
@@ -155,6 +159,7 @@ public class FileService {
         runAfterCommit(() -> fileStorage.deleteObjects(keys));
     }
 
+
     @Transactional
     public int deleteUnattachedCreatedBefore(Instant threshold, int limit) {
         List<String> keys = fileRepository.lockUnattachedKeysCreatedBefore(threshold, limit);
@@ -164,6 +169,30 @@ public class FileService {
         fileRepository.deleteAllByObjectKeyIn(keys);
         runAfterCommit(() -> fileStorage.deleteObjects(keys));
         return keys.size();
+    }
+
+    /**
+     * S3 태그 제거는 일부러 DB 커밋 전에 한다.
+     * - 커밋 전 제거 후 롤백: 태그 없는 미첨부 파일이 남음 → 정리 스케줄러가 삭제, 재첨부도 정상 동작 (안전)
+     * - 커밋 후 제거가 실패: DB는 첨부됨인데 temp 태그가 남음 → lifecycle이 사용 중인 파일을 삭제 (위험)
+     */
+    private void attachFiles(Long memberId, Collection<StoredFile> files) {
+        for (StoredFile file : files) {
+            if (!file.isOwnedBy(memberId)) {
+                throw FileException.forbidden();
+            }
+        }
+        Instant now = Instant.now();
+        for (StoredFile file : files) {
+            if (!file.isUploaded()) {
+                verifyUploaded(file);
+                file.markUploaded(now);
+            }
+            if (!fileStorage.removeTempTag(file.getObjectKey())) {
+                throw FileException.badRequest("업로드되지 않았거나 만료된 파일입니다: " + file.getId());
+            }
+            file.markAttached(now);
+        }
     }
 
     private void verifyUploaded(StoredFile file) {
