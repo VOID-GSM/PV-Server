@@ -138,11 +138,12 @@ public class FileService {
     }
 
     @Transactional
-    public void deleteByIds(Collection<Long> fileIds) {
+    public void deleteByIds(Long ownerId, Collection<Long> fileIds) {
         if (fileIds == null || fileIds.isEmpty()) {
             return;
         }
         List<String> keys = fileRepository.findAllById(fileIds.stream().distinct().toList()).stream()
+                .filter(file -> file.isOwnedBy(ownerId))
                 .map(StoredFile::getObjectKey)
                 .toList();
         deleteByKeys(keys);

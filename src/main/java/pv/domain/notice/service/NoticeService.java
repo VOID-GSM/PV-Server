@@ -174,7 +174,7 @@ public class NoticeService {
             Set<Long> after = FileReferences.extractFileIds(content);
             fileService.attachByIds(loginMemberId, after);
             before.removeAll(after);
-            fileService.deleteByIds(before);
+            fileService.deleteByIds(notice.getAuthorId(), before);
         }
 
         notice.update(
@@ -200,7 +200,7 @@ public class NoticeService {
 
         recipientRepository.deleteAllByNoticeId(noticeId);
         notificationService.deleteByTarget(NotificationType.NOTICE, noticeId);
-        fileService.deleteByIds(FileReferences.extractFileIds(notice.getContent()));
+        fileService.deleteByIds(notice.getAuthorId(), FileReferences.extractFileIds(notice.getContent()));
         noticeRepository.delete(notice);
     }
 
