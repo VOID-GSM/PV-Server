@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import pv.domain.activity.entity.ActivityStatus;
 import pv.domain.member.entity.Major;
 
+import java.time.LocalDate;
 import java.util.Set;
 
 public record ActivityUpdateRequest(
@@ -14,6 +15,8 @@ public record ActivityUpdateRequest(
         @Size(max = 10) Set<Major> targetMajors,
         @Size(max = 20) Set<Long> targetGenerationIds,
         @Min(1) @Max(200) Integer capacity,
-        ActivityStatus status
+        ActivityStatus status,
+        LocalDate startDate,
+        LocalDate endDate
 ) {
 }
