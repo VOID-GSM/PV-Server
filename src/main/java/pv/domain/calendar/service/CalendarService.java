@@ -10,6 +10,8 @@ import pv.domain.calendar.dto.EventUpdateRequest;
 import pv.domain.calendar.entity.CalendarEvent;
 import pv.domain.calendar.entity.EventType;
 import pv.domain.calendar.port.CalendarMembershipPort;
+import pv.domain.calendar.port.CalendarDeadlinePort;
+import pv.domain.calendar.port.CalendarDeadlinePort.DeadlineView;
 import pv.domain.calendar.repository.CalendarEventRepository;
 import org.springframework.http.HttpStatus;
 import pv.global.exception.CustomException;
@@ -19,8 +21,8 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
+import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
 import static pv.global.exception.TimeZones.KST;
 
 @Service
@@ -32,6 +34,7 @@ public class CalendarService {
 
     private final CalendarEventRepository eventRepository;
     private final CalendarMembershipPort membership;
+    private final CalendarDeadlinePort deadlinePort;
 
     public List<EventResponse> getCalendar(Long memberId, LocalDate from, LocalDate to,
                                            Set<Long> boardFilter, boolean mine) {
@@ -45,12 +48,20 @@ public class CalendarService {
                 ? membership.activityIdsOf(memberId)
                 : membership.teamActivityIdsOf(memberId);
 
-        return eventRepository.findCalendar(
+        List<EventResponse> events = new ArrayList<>(eventRepository.findCalendar(
                         memberId, startOf(from), startOf(to.plusDays(1)),
                         orNone(boards), orNone(activities), EventType.PERSONAL)
                 .stream()
                 .map(EventResponse::from)
-                .toList();
+                .toList());
+
+        deadlinePort.findDeadlines(boards, from, to).stream()
+                .filter(d -> !mine || memberId.equals(d.assigneeId()))
+                .map(EventResponse::from)
+                .forEach(events::add);
+
+        events.sort(comparing(EventResponse::startsAt));
+        return events;
     }
 
     public List<ConflictResponse> getConflicts(Long memberId, LocalDate from, LocalDate to) {
@@ -63,13 +74,19 @@ public class CalendarService {
         LocalDate weekFrom = from.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate weekTo = to.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
-        return eventRepository.findDeadlines(boards, startOf(weekFrom), startOf(weekTo.plusDays(1)), EventType.DEADLINE)
-                .stream()
-                .collect(groupingBy(e -> weekStartOf(e.getStartsAt()), TreeMap::new, toList()))
-                .entrySet().stream()
+        record Key(LocalDate weekStart, Long assigneeId) {}
+
+        Map<Key, List<DeadlineView>> grouped = deadlinePort.findDeadlines(boards, weekFrom, weekTo).stream()
+                .filter(d -> d.assigneeId() != null)
+                .collect(groupingBy(d -> new Key(weekStartOf(d.date()), d.assigneeId())));
+
+        return grouped.entrySet().stream()
                 .filter(en -> en.getValue().size() >= 2)
+                .sorted(comparing((Map.Entry<Key, List<DeadlineView>> en) -> en.getKey().weekStart())
+                        .thenComparing(en -> en.getKey().assigneeId()))
                 .map(en -> new ConflictResponse(
-                        en.getKey(),
+                        en.getKey().weekStart(),
+                        en.getKey().assigneeId(),
                         en.getValue().stream().map(EventResponse::from).toList()))
                 .toList();
     }
@@ -116,8 +133,8 @@ public class CalendarService {
         return kst == null ? null : kst.atZone(KST).toInstant();
     }
 
-    private static LocalDate weekStartOf(Instant instant) {
-        return instant.atZone(KST).toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    private static LocalDate weekStartOf(LocalDate date) {
+        return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
     }
 
     private static Collection<Long> orNone(Set<Long> ids) {

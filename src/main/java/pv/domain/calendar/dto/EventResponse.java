@@ -2,8 +2,11 @@ package pv.domain.calendar.dto;
 
 import pv.domain.calendar.entity.CalendarEvent;
 import pv.domain.calendar.entity.EventType;
+import pv.domain.calendar.port.CalendarDeadlinePort;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+
 import static pv.global.exception.TimeZones.KST;
 
 public record EventResponse(
@@ -15,12 +18,20 @@ public record EventResponse(
         LocalDateTime endsAt,
         boolean allDay,
         Long boardId,
-        Long activityId
+        Long activityId,
+        Long assigneeId
 ) {
     public static EventResponse from(CalendarEvent e) {
         return new EventResponse(e.getId(), e.getType(), e.getTitle(), e.getMemo(),
                 LocalDateTime.ofInstant(e.getStartsAt(), KST),
                 LocalDateTime.ofInstant(e.getEndsAt(), KST),
-                e.isAllDay(), e.getBoardId(), e.getActivityId());
+                e.isAllDay(), e.getBoardId(), e.getActivityId(), null);
+    }
+
+    public static EventResponse from(CalendarDeadlinePort.DeadlineView d) {
+        return new EventResponse(d.id(), EventType.DEADLINE, d.name(), null,
+                d.date().atStartOfDay(),
+                d.date().atTime(LocalTime.of(23, 59, 59)),
+                true, d.boardId(), null, d.assigneeId());
     }
 }

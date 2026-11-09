@@ -5,5 +5,6 @@ import java.util.List;
 
 public record ConflictResponse(
         LocalDate weekStart,
+        Long assigneeId,
         List<EventResponse> deadlines
 ) {}
