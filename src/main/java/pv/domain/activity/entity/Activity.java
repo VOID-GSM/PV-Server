@@ -114,8 +114,8 @@ public class Activity {
     }
 
     // null이 아닌 값만 수정
-    public void update(String name, String description, Set<Major> targetMajors, Set<Long> targetGenerationIds,
-                       Integer capacity, LocalDate startDate, LocalDate endDate) {
+    public void update(String name, String description, Set<Major> targetMajors,
+                       Set<Long> targetGenerationIds, Integer capacity) {
         if (name != null) this.name = name;
         if (description != null) this.description = description;
         if (targetMajors != null) {
