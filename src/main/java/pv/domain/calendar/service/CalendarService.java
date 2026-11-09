@@ -56,6 +56,7 @@ public class CalendarService {
                 .toList());
 
         deadlinePort.findDeadlines(boards, from, to).stream()
+                .filter(d -> !mine || memberId.equals(d.assigneeId()))
                 .map(EventResponse::from)
                 .forEach(events::add);
 
