@@ -114,7 +114,7 @@ public class FileService {
         if (objectKeys.isEmpty()) {
             return;
         }
-        Map<String, StoredFile> files = fileRepository.findAllByObjectKeyIn(objectKeys).stream()
+        Map<String, StoredFile> files = fileRepository.findAllByObjectKeyInForUpdate(objectKeys).stream()
                 .collect(Collectors.toMap(StoredFile::getObjectKey, Function.identity()));
         for (String key : objectKeys) {
             if (!files.containsKey(key)) {
@@ -130,7 +130,7 @@ public class FileService {
             return;
         }
         List<Long> ids = fileIds.stream().distinct().toList();
-        List<StoredFile> files = fileRepository.findAllById(ids);
+        List<StoredFile> files = fileRepository.findAllByIdInForUpdate(ids);
         if (files.size() != ids.size()) {
             throw FileException.badRequest("존재하지 않거나 삭제된 파일이 포함되어 있습니다.");
         }
@@ -143,6 +143,18 @@ public class FileService {
             return;
         }
         List<String> keys = fileRepository.findAllById(fileIds.stream().distinct().toList()).stream()
+                .filter(file -> file.isOwnedBy(ownerId))
+                .map(StoredFile::getObjectKey)
+                .toList();
+        deleteByKeys(keys);
+    }
+
+    @Transactional
+    public void deleteByKeys(Long ownerId, Collection<String> objectKeys) {
+        if (objectKeys == null || objectKeys.isEmpty()) {
+            return;
+        }
+        List<String> keys = fileRepository.findAllByObjectKeyIn(objectKeys.stream().distinct().toList()).stream()
                 .filter(file -> file.isOwnedBy(ownerId))
                 .map(StoredFile::getObjectKey)
                 .toList();
@@ -180,6 +192,10 @@ public class FileService {
         for (StoredFile file : files) {
             if (!file.isOwnedBy(memberId)) {
                 throw FileException.forbidden();
+            }
+            if (file.isAttached()) {
+                throw FileException.badRequest(
+                        "이미 다른 곳에 첨부된 파일입니다. 같은 파일을 쓰려면 다시 업로드해 주세요: " + file.getId());
             }
         }
         Instant now = Instant.now();

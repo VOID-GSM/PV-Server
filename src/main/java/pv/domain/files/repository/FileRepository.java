@@ -1,6 +1,8 @@
 package pv.domain.files.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,6 +17,14 @@ public interface FileRepository extends JpaRepository<StoredFile, Long> {
     Optional<StoredFile> findByObjectKey(String objectKey);
 
     List<StoredFile> findAllByObjectKeyIn(Collection<String> objectKeys);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select f from StoredFile f where f.objectKey in :objectKeys order by f.id")
+    List<StoredFile> findAllByObjectKeyInForUpdate(@Param("objectKeys") Collection<String> objectKeys);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select f from StoredFile f where f.id in :ids order by f.id")
+    List<StoredFile> findAllByIdInForUpdate(@Param("ids") Collection<Long> ids);
 
     @Modifying(flushAutomatically = true)
     @Query("delete from StoredFile f where f.objectKey in :objectKeys")

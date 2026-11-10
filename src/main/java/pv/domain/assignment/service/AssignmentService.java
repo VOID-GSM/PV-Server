@@ -168,7 +168,7 @@ public class AssignmentService {
         }
 
         List<String> fileKeys =
-                attachmentValidator.normalize(req.fileKeys(), memberId);
+                attachmentValidator.attachNew(memberId, req.fileKeys());
 
         Set<Long> skillIds = validatedSkillIds(req.skillIds());
 
@@ -254,7 +254,7 @@ public class AssignmentService {
 
         List<String> fileKeys = req.fileKeys() == null
                 ? null
-                : attachmentValidator.normalize(req.fileKeys(), memberId);
+                : attachmentValidator.replace(memberId, a.getFileKeys(), req.fileKeys());
 
         Set<Long> skillIds = req.skillIds() == null
                 ? null

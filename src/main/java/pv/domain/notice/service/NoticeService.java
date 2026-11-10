@@ -34,6 +34,7 @@ import pv.domain.files.service.FileService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -172,7 +173,11 @@ public class NoticeService {
         if (content != null) {
             Set<Long> before = FileReferences.extractFileIds(notice.getContent());
             Set<Long> after = FileReferences.extractFileIds(content);
-            fileService.attachByIds(loginMemberId, after);
+
+            Set<Long> added = new LinkedHashSet<>(after);
+            added.removeAll(before);
+            fileService.attachByIds(loginMemberId, added);
+
             before.removeAll(after);
             fileService.deleteByIds(notice.getAuthorId(), before);
         }
