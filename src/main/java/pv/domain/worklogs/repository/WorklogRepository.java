@@ -41,4 +41,7 @@ public interface WorklogRepository extends JpaRepository<Worklog, Long> {
             @Param("visibility") Visibility visibility,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    @Query("select w.author.id from Worklog w where w.id = :id")
+    Optional<Long> findAuthorIdById(@Param("id") Long id);
 }

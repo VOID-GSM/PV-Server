@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pv.domain.assignment.dto.projection.MySubmissionRow;
 import pv.domain.assignment.dto.projection.SubmissionCountRow;
 import pv.domain.assignment.dto.projection.SubmissionRow;
@@ -65,4 +66,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @Modifying(flushAutomatically = true)
     @Query("delete from Submission s where s.assignment.id = :assignmentId")
     void deleteAllByAssignmentId(Long assignmentId);
+
+    @Query("select s.submitter.id from Submission s where s.id = :id")
+    Optional<Long> findSubmitterIdById(@Param("id") Long id);
 }
