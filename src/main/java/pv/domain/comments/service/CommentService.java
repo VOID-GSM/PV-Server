@@ -19,14 +19,24 @@ import pv.domain.member.repository.MemberRepository;
 
 import java.util.List;
 import java.util.HashSet;
+import pv.domain.notification.entity.NotificationType;
+import pv.domain.notification.service.NotificationService;
+import pv.domain.posts.repository.PostRepository;
+import pv.domain.worklogs.repository.WorklogRepository;
+import pv.domain.assignment.repository.SubmissionRepository;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class CommentService {
+
     private final CommentRepository commentRepository;
     private final FeedbackRequestRepository feedbackRequestRepository;
     private final MemberRepository memberRepository;
+    private final NotificationService notificationService;
+    private final WorklogRepository worklogRepository;
+    private final SubmissionRepository submissionRepository;
+    private final PostRepository postRepository;
 
     // 댓글 부분
     @Transactional(readOnly = true)
@@ -41,6 +51,9 @@ public class CommentService {
         Anchor anchor = toAnchor(req.targetType(), req.targetId(), req.anchor());
         Comment saved = commentRepository.save(
                 Comment.create(me.getTeamId(), req.targetType(), req.targetId(), memberId, req.content(), anchor));
+
+        notifyTargetAuthor(me, req.targetType(), req.targetId());   // ← 추가
+
         return CommentDto.Response.from(saved);
     }
 
@@ -139,5 +152,38 @@ public class CommentService {
             throw new CustomException(HttpStatus.FORBIDDEN, "가입 승인 후 이용할 수 있습니다.");
         }
         return m;
+    }
+
+    // 댓글이 달린 글의 작성자에게 알림 (내 글이면 제외). targetId는 댓글이 아니라 글의 id.
+    private void notifyTargetAuthor(Member me, TargetType type, Long targetId) {
+        NotificationType notiType;
+        Long authorId;
+        String title;
+
+        switch (type) {
+            case WORKLOG -> {
+                notiType = NotificationType.WORKLOG_COMMENT;
+                authorId = worklogRepository.findAuthorIdById(targetId).orElse(null);
+                title = "[댓글] 내 업무일지에 댓글이 달렸습니다.";
+            }
+            case SUBMISSION -> {
+                notiType = NotificationType.SUBMISSION_COMMENT;
+                authorId = submissionRepository.findSubmitterIdById(targetId).orElse(null);
+                title = "[댓글] 내 제출물에 댓글이 달렸습니다.";
+            }
+            case NOTE -> {
+                notiType = NotificationType.NOTE_COMMENT;
+                authorId = postRepository.findAuthorIdById(targetId).orElse(null);
+                title = "[댓글] 내 정리글에 댓글이 달렸습니다.";
+            }
+            default -> {
+                return;
+            }
+        }
+
+        if (authorId == null || authorId.equals(me.getId())) {
+            return;
+        }
+        notificationService.send(notiType, title, targetId, List.of(authorId));
     }
 }
