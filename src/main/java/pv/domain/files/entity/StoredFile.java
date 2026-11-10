@@ -95,6 +95,10 @@ public class StoredFile {
         return this.status == FileStatus.UPLOADED;
     }
 
+    public boolean isAttached() {
+        return this.attachedAt != null;
+    }
+
     public boolean isOwnedBy(Long memberId) {
         return this.uploaderId.equals(memberId);
     }
