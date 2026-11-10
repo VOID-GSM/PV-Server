@@ -63,8 +63,7 @@ public class SubmissionService {
         return SubmissionStatusResponse.of(assignmentId, items);
     }
 
-    // 7. 제출: 대상자만. 마감 판정은 과제 공유 락 획득 이후 시각 기준
-    // 7. 제출: 대상자만. 마감 판정은 과제 공유 락 획득 이후 시각 기준
+    // 마감 후 제출도 허용한다. 지각 판정 기준 시각은 과제 공유 락 획득 이후 시각이다.
     @Transactional
     public SubmissionResponse submit(Long memberId, Long assignmentId, SubmissionRequest req) {
         Member me = joinedMember(memberId);
