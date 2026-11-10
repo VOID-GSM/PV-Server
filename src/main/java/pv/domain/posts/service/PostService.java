@@ -23,6 +23,9 @@ import pv.domain.posts.dto.PostUpdateRequest;
 import pv.domain.posts.entity.Post;
 import pv.domain.posts.repository.PostRepository;
 import org.springframework.data.domain.Sort;
+import pv.domain.files.service.FileReferences;
+import pv.domain.files.service.FileService;
+import java.util.HashSet;
 
 import java.util.Set;
 import static pv.domain.posts.repository.PostSpecs.*;
@@ -40,6 +43,7 @@ public class PostService {
     private final ActivityMemberRepository activityMemberRepository;
     private final InterviewQuestionRepository interviewQuestionRepository;
     private final Clock clock;
+    private final FileService fileService;
 
     private static final Set<String> ALLOWED_SORT_PROPERTIES = Set.of("createdAt", "id");
 
@@ -70,6 +74,7 @@ public class PostService {
         if (req.questionId() != null && !interviewQuestionRepository.existsById(req.questionId())) {
             throw new CustomException(HttpStatus.NOT_FOUND, "면접 질문이 없습니다.");
         }
+        fileService.attachByIds(member.getId(), FileReferences.extractFileIds(req.content()));
         Post post = Post.create(
                 member.getId(),
                 activityId,
@@ -94,6 +99,16 @@ public class PostService {
         if (!post.isWrittenBy(currentMemberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 글만 수정할 수 있습니다.");
         }
+        Set<Long> before = new HashSet<>(FileReferences.extractFileIds(post.getContent()));
+        Set<Long> after = new HashSet<>(FileReferences.extractFileIds(req.content()));
+
+        Set<Long> added = new HashSet<>(after);
+        added.removeAll(before);
+        Set<Long> removed = new HashSet<>(before);
+        removed.removeAll(after);
+
+        fileService.attachByIds(currentMemberId, added);
+        fileService.deleteByIds(currentMemberId, removed);
         post.update(req.title(), req.content());
         postRepository.flush();
         return PostResponse.from(post);
@@ -106,6 +121,7 @@ public class PostService {
         if (!post.isWrittenBy(currentMemberId) && !member.isLeader()) {
             throw new CustomException(HttpStatus.FORBIDDEN, "삭제 권한이 없습니다.");
         }
+        fileService.deleteByIds(post.getAuthorId(), FileReferences.extractFileIds(post.getContent()));
         postRepository.delete(post);
     }
 
