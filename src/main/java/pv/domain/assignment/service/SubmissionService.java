@@ -69,7 +69,6 @@ public class SubmissionService {
     public SubmissionResponse submit(Long memberId, Long assignmentId, SubmissionRequest req) {
         Member me = joinedMember(memberId);
         requireAnyContent(req);
-        List<String> fileKeys = attachmentValidator.normalize(req.fileKeys(), memberId);
 
         Assignment a = assignmentRepository.findByIdForShare(assignmentId)
                 .filter(x -> x.getTeamId().equals(me.getTeamId()))
@@ -81,6 +80,7 @@ public class SubmissionService {
             throw new CustomException(HttpStatus.CONFLICT, "이미 제출한 과제입니다.");
         }
 
+        List<String> fileKeys = attachmentValidator.attachNew(memberId, req.fileKeys());
         LocalDateTime now = LocalDateTime.now(clock); // 락 획득 후 시각
         try {
             Submission saved = submissionRepository.saveAndFlush(new Submission(
@@ -107,7 +107,6 @@ public class SubmissionService {
     public void resubmit(Long memberId, Long assignmentId, Long submissionId, SubmissionRequest req) {
         Member me = joinedMember(memberId);
         requireAnyContent(req);
-        List<String> fileKeys = attachmentValidator.normalize(req.fileKeys(), memberId);
 
         Submission s = lockedSubmission(assignmentId, submissionId);
         if (!s.isSubmittedBy(me.getId())) {
@@ -116,6 +115,7 @@ public class SubmissionService {
         if (s.getStatus() != SubmissionStatus.RESUBMIT_REQUESTED) {
             throw new CustomException(HttpStatus.CONFLICT, "재제출이 요청된 제출물만 수정할 수 있습니다.");
         }
+        List<String> fileKeys = attachmentValidator.replace(memberId, s.getFileKeys(), req.fileKeys());
         s.resubmit(blankToNull(req.content()), fileKeys, blankToNull(req.githubUrl()), LocalDateTime.now(clock));
     }
 
