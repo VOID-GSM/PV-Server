@@ -130,7 +130,7 @@ public class FileService {
             return;
         }
         List<Long> ids = fileIds.stream().distinct().toList();
-        List<StoredFile> files = fileRepository.findAllById(ids);
+        List<StoredFile> files = fileRepository.findAllByIdInForUpdate(ids);
         if (files.size() != ids.size()) {
             throw FileException.badRequest("존재하지 않거나 삭제된 파일이 포함되어 있습니다.");
         }
