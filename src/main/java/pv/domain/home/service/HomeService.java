@@ -14,6 +14,7 @@ import pv.domain.home.dto.DashboardResponse;
 import pv.domain.home.dto.HomeTodosResponse;
 import pv.domain.home.dto.MemberDashboardResponse;
 import pv.domain.home.dto.TodoItemResponse;
+import pv.domain.home.repository.AssignmentRateRow;
 import pv.domain.home.repository.HomeQueryRepository;
 import pv.domain.home.repository.IdCountRow;
 import pv.domain.home.type.TodoType;
@@ -30,6 +31,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +40,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -45,6 +49,7 @@ public class HomeService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final int TOPIC_VOTE_DEADLINE_HOUR = 15;
     private static final int OVERLOAD_DEADLINE_THRESHOLD = 3;
+    private static final int OVERDUE_ASSIGNMENT_DAYS = 7;
 
     private final Clock clock;
     private final HomeQueryRepository homeQueryRepository;
@@ -59,8 +64,13 @@ public class HomeService {
 
         List<TodoItemResponse> items = new ArrayList<>();
         items.addAll(topicInputTodos(memberId, today, now));
+        items.addAll(assignmentTodos(memberId, now));
+        items.addAll(feedbackTodos(memberId, now));
         items.addAll(voteTodos(memberId, today, now));
         items.addAll(absenceTodos(memberId, now));
+
+        items.sort(Comparator.comparing(TodoItemResponse::dueAt,
+                Comparator.nullsLast(Comparator.naturalOrder())));
 
         Map<TodoType, Long> counts = new EnumMap<>(TodoType.class);
         for (TodoType type : TodoType.values()) {
@@ -85,6 +95,34 @@ public class HomeService {
                 .toList();
     }
 
+    private List<TodoItemResponse> assignmentTodos(Long memberId, OffsetDateTime now) {
+        LocalDateTime overdueFrom = now.toLocalDateTime().minusDays(OVERDUE_ASSIGNMENT_DAYS);
+        return homeQueryRepository.findAssignmentTodos(memberId, overdueFrom).stream()
+                .map(r -> TodoItemResponse.of(
+                        TodoType.ASSIGNMENT_SUBMIT,
+                        r.assignmentId(),
+                        r.title(),
+                        "RESUBMIT_REQUESTED".equals(r.submissionStatus())
+                                ? "재제출 요청을 받았어요."
+                                : "아직 제출하지 않았어요.",
+                        r.deadline().atZone(KST).toOffsetDateTime(),
+                        now))
+                .toList();
+    }
+
+    private List<TodoItemResponse> feedbackTodos(Long memberId, OffsetDateTime now) {
+        return homeQueryRepository.findFeedbackTodos(memberId).stream()
+                .map(r -> TodoItemResponse.of(
+                        TodoType.FEEDBACK_GIVE,
+                        r.requestId(),
+                        feedbackTitle(r.targetType()),
+                        r.requesterName() + "님이 피드백을 요청했어요."
+                                + (r.message() == null || r.message().isBlank() ? "" : " · " + r.message()),
+                        null,
+                        now))
+                .toList();
+    }
+
     private List<TodoItemResponse> voteTodos(Long memberId, LocalDate today, OffsetDateTime now) {
         LocalDateTime nowLocal = now.toLocalDateTime();
         return homeQueryRepository.findVoteCandidates(memberId, today).stream()
@@ -105,7 +143,7 @@ public class HomeService {
 
     private List<TodoItemResponse> absenceTodos(Long memberId, OffsetDateTime now) {
         List<AbsenceResponse> pending = absenceService.getPending(memberId).stream()
-                .filter(a -> !a.memberId().equals(memberId))   // 본인 신청은 제외
+                .filter(a -> !a.memberId().equals(memberId))
                 .toList();
         if (pending.isEmpty()) {
             return List.of();
@@ -119,7 +157,6 @@ public class HomeService {
         sessionRepository.findAllById(ids(pending, AbsenceResponse::sessionId))
                 .forEach(s -> sessionDates.put(s.getId(), s.getSessionDate()));
 
-        // 이름이 null일 수 있어 Collectors.toMap 대신 직접 담음
         Map<Long, String> memberNames = new HashMap<>();
         memberRepository.findAllById(ids(pending, AbsenceResponse::memberId))
                 .forEach(m -> memberNames.put(m.getId(), m.getName()));
@@ -146,7 +183,8 @@ public class HomeService {
         }
         Long teamId = requester.getTeamId();
 
-        LocalDate today = OffsetDateTime.ofInstant(clock.instant(), KST).toLocalDate();
+        OffsetDateTime now = OffsetDateTime.ofInstant(clock.instant(), KST);
+        LocalDate today = now.toLocalDate();
         LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate weekEnd = weekStart.plusDays(6);
 
@@ -160,6 +198,10 @@ public class HomeService {
                     .put(c.status(), c.count());
         }
 
+        Map<Long, AssignmentRateRow> assignmentRates = new HashMap<>();
+        homeQueryRepository.countAssignmentRateByMember(teamId, now.toLocalDateTime())
+                .forEach(r -> assignmentRates.put(r.memberId(), r));
+
         List<MemberDashboardResponse> members = homeQueryRepository.findTeamMembers(teamId).stream()
                 .map(m -> {
                     long weekly = deadlineCounts.getOrDefault(m.memberId(), 0L);
@@ -168,6 +210,10 @@ public class HomeService {
                     long present = att.getOrDefault(AttendanceStatus.PRESENT, 0L);
                     long excused = att.getOrDefault(AttendanceStatus.EXCUSED, 0L);
                     long absent = att.getOrDefault(AttendanceStatus.ABSENT, 0L);
+
+                    AssignmentRateRow asg = assignmentRates.get(m.memberId());
+                    long due = asg == null ? 0L : asg.dueCount();
+                    long submitted = asg == null ? 0L : asg.submittedCount();
 
                     return new MemberDashboardResponse(
                             m.memberId(),
@@ -180,14 +226,23 @@ public class HomeService {
                             excused,
                             absent,
                             rate(present, present + excused + absent),
-                            0L,     // 과제 도메인 구현 전
-                            0L,
-                            null);
+                            due,
+                            submitted,
+                            rate(submitted, due));
                 })
                 .toList();
 
         int overloaded = (int) members.stream().filter(MemberDashboardResponse::overloaded).count();
         return new DashboardResponse(weekStart, weekEnd, overloaded, members);
+    }
+
+    private static String feedbackTitle(String targetType) {
+        return switch (targetType) {
+            case "NOTE" -> "정리글 피드백 요청";
+            case "SUBMISSION" -> "과제 제출물 피드백 요청";
+            case "WORKLOG" -> "업무일지 피드백 요청";
+            default -> "피드백 요청";
+        };
     }
 
     private static OffsetDateTime endOfDay(LocalDate date) {
