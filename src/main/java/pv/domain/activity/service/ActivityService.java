@@ -19,6 +19,7 @@ import pv.domain.member.repository.MemberRepository;
 import pv.global.exception.CustomException;
 import java.time.Clock;
 import java.util.Optional;
+import java.util.List;
 
 import java.time.LocalDateTime;
 import java.time.DayOfWeek;
@@ -81,7 +82,7 @@ public class ActivityService {
                                 || a.getTargetGenerationIds().contains(generationId))
                         .toList();
 
-        return toSummaries(activities);
+        return toSummaries(activities, member.getId());
     }
 
     // 개설자는 자동으로 스터디장으로 등록
@@ -181,7 +182,7 @@ public class ActivityService {
             );
         }
 
-        return ActivitySummaryResponse.of(activity, 1);
+        return ActivitySummaryResponse.of(activity, 1, true);
     }
 
     public ActivityDetailResponse getActivity(
@@ -231,7 +232,10 @@ public class ActivityService {
 
         return ActivityDetailResponse.of(
                 activity,
-                ActivitySummaryResponse.of(activity, members.size()),
+                ActivitySummaryResponse.of(
+                        activity,
+                        members.size(),
+                        members.stream().anyMatch(m -> m.getMemberId().equals(member.getId()))),
                 generations,
                 members.stream()
                         .map(m -> ActivityMemberResponse.of(
@@ -1231,31 +1235,40 @@ public class ActivityService {
         return dates;
     }
 
-    // 인원수는 group by 한 번으로 조회
-    // 활동마다 count 쿼리가 나가지 않게 한다.
+    // 인원수와 내 참여 여부는 각각 IN/group by 한 번으로 조회
+// 활동마다 쿼리가 나가지 않게 한다.
     private List<ActivitySummaryResponse> toSummaries(
-            List<Activity> activities
+            List<Activity> activities,
+            Long memberId
     ) {
         if (activities.isEmpty()) {
             return List.of();
         }
 
+        List<Long> activityIds = activities.stream()
+                .map(Activity::getId)
+                .toList();
+
         Map<Long, Long> counts = new HashMap<>();
 
-        activityMemberRepository.countByActivityIds(
-                        activities.stream()
-                                .map(Activity::getId)
-                                .toList()
-                )
+        activityMemberRepository.countByActivityIds(activityIds)
                 .forEach(c -> counts.put(
                         c.activityId(),
                         c.count()
                 ));
 
+        Set<Long> myActivityIds = new HashSet<>(
+                activityMemberRepository.findActivityIdsByMemberIdAndActivityIdIn(
+                        memberId,
+                        activityIds
+                )
+        );
+
         return activities.stream()
                 .map(a -> ActivitySummaryResponse.of(
                         a,
-                        counts.getOrDefault(a.getId(), 0L)
+                        counts.getOrDefault(a.getId(), 0L),
+                        myActivityIds.contains(a.getId())
                 ))
                 .toList();
     }
