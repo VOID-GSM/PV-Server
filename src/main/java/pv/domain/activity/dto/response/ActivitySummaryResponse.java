@@ -10,13 +10,15 @@ public record ActivitySummaryResponse(
         RecruitMode recruitMode, String recruitModeLabel,
         ActivityStatus status, String statusLabel,
         int capacity, long memberCount,
-        LocalDate startDate, LocalDate endDate
+        LocalDate startDate, LocalDate endDate,
+        boolean isMember
 ) {
-    public static ActivitySummaryResponse of(Activity a, long memberCount) {
+    public static ActivitySummaryResponse of(Activity a, long memberCount, boolean isMember) {
         return new ActivitySummaryResponse(a.getId(), a.getName(),
                 a.getType(), a.getType().getLabel(),
                 a.getRecruitMode(), a.getRecruitMode().getLabel(),
                 a.getStatus(), a.getStatus().getLabel(),
-                a.getCapacity(), memberCount, a.getStartDate(), a.getEndDate());
+                a.getCapacity(), memberCount, a.getStartDate(), a.getEndDate(),
+                isMember);
     }
 }
