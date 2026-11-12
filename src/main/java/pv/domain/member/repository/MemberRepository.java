@@ -2,6 +2,7 @@ package pv.domain.member.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pv.domain.member.entity.Major;
 import pv.domain.member.entity.Member;
 import pv.domain.member.entity.MemberStatus;
@@ -64,4 +65,31 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     // 이름만 필요할 때 Member(roles/majors EAGER 컬렉션)를 통째로 로딩하지 않기 위함
     @Query("select m.name from Member m where m.id = :id")
     Optional<String> findNameById(Long id);
+
+    // 과제 대상자 계산 (ALL): 같은 팀, 가입 완료, 출제자·선배·부장 제외
+    @Query(value = """
+        select m.id from member m
+        where m.team_id = :teamId
+          and m.status = 'JOINED'
+          and m.id <> :authorId
+          and not exists (select 1 from member_roles r
+                          where r.member_id = m.id and r.role in ('SENIOR','LEADER'))
+        """, nativeQuery = true)
+    List<Long> findAssignmentBaseIds(@Param("teamId") Long teamId,
+                                     @Param("authorId") Long authorId);
+
+    // 과제 대상자 계산 (MAJOR): 위 조건 + 지정 전공 보유
+    @Query(value = """
+        select distinct m.id from member m
+        join member_majors mm on mm.member_id = m.id
+        where m.team_id = :teamId
+          and m.status = 'JOINED'
+          and m.id <> :authorId
+          and mm.major in (:majors)
+          and not exists (select 1 from member_roles r
+                          where r.member_id = m.id and r.role in ('SENIOR','LEADER'))
+        """, nativeQuery = true)
+    List<Long> findAssignmentMajorIds(@Param("teamId") Long teamId,
+                                      @Param("authorId") Long authorId,
+                                      @Param("majors") Collection<String> majors);
 }
