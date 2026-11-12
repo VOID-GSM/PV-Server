@@ -7,9 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import pv.domain.assignment.entity.Assignment;
-import pv.domain.member.entity.Major;
 
-import java.util.Collection;
 import java.util.Optional;
 
 public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
@@ -27,18 +25,17 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     @Query("select a from Assignment a where a.id = :id")
     Optional<Assignment> findByIdForUpdate(Long id);
 
-    // 출제 시점에 확정된 대상자 명단(assignment_recipients) 기준
     @Query(value = """
-        select a from Assignment a join fetch a.author
-        where a.id in (select r.assignmentId from AssignmentRecipient r
-                       where r.memberId = :memberId)
-        order by a.id desc
-        """,
+            select a from Assignment a join fetch a.author
+            where a.id in (select r.assignmentId from AssignmentRecipient r
+                           where r.memberId = :memberId)
+            order by a.id desc
+            """,
             countQuery = """
-                select count(a) from Assignment a
-                where a.id in (select r.assignmentId from AssignmentRecipient r
-                               where r.memberId = :memberId)
-                """)
+                    select count(a) from Assignment a
+                    where a.id in (select r.assignmentId from AssignmentRecipient r
+                                   where r.memberId = :memberId)
+                    """)
     Page<Assignment> findReceived(Long memberId, Pageable pageable);
 
     @Query(value = """

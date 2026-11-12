@@ -10,6 +10,8 @@ import java.util.Collection;
 
 public interface AssignmentRecipientRepository extends JpaRepository<AssignmentRecipient, Long> {
 
+    boolean existsByAssignmentIdAndMemberId(Long assignmentId, Long memberId);
+
     @Modifying(flushAutomatically = true)
     @Query(value = """
             insert into assignment_recipients (assignment_id, member_id)
