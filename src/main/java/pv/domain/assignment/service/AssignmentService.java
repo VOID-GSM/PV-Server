@@ -38,8 +38,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AssignmentService {
 
-    private static final int RECIPIENT_CHUNK_SIZE = 1000;
-
     private final AssignmentRepository assignmentRepository;
     private final AssignmentRecipientRepository recipientRepository;
     private final SubmissionRepository submissionRepository;
@@ -58,7 +56,6 @@ public class AssignmentService {
         Member me = joinedMember(memberId);
         boolean received = type == AssignmentListType.RECEIVED;
 
-        // 받은 과제는 출제 시점에 확정된 대상자 명단(assignment_recipients) 기준
         Page<Assignment> page = received
                 ? assignmentRepository.findReceived(me.getId(), pageable)
                 : assignmentRepository.findCreated(me.getId(), pageable);
@@ -185,25 +182,18 @@ public class AssignmentService {
                 now
         ));
 
-        // 출제 시점에 대상자를 확정해 저장 (이후 모든 화면이 이 명단만 본다)
-        final Set<Major> targetMajors = majors;
-        final Set<Long> targetMemberIds = memberIds;
-
         List<Long> recipientIds = switch (req.targetType()) {
             case ALL -> memberRepository.findAssignmentBaseIds(me.getTeamId(), me.getId());
-            case MAJOR -> memberRepository.findAssignmentMajorIds(
-                    me.getTeamId(),
-                    me.getId(),
-                    targetMajors.stream().map(Major::name).toList());
-            case MEMBER -> targetMemberIds.stream()
+            case MAJOR -> memberRepository.findAssignmentMajorIds(me.getTeamId(), me.getId(), majors);
+            case MEMBER -> memberIds.stream()
                     .filter(id -> !id.equals(me.getId()))
                     .toList();
         };
 
-        for (int i = 0; i < recipientIds.size(); i += RECIPIENT_CHUNK_SIZE) {
+        for (int i = 0; i < recipientIds.size(); i += 1000) {
             recipientRepository.insertAll(
                     saved.getId(),
-                    recipientIds.subList(i, Math.min(i + RECIPIENT_CHUNK_SIZE, recipientIds.size())));
+                    recipientIds.subList(i, Math.min(i + 1000, recipientIds.size())));
         }
 
         return saved.getId();
@@ -220,7 +210,8 @@ public class AssignmentService {
                         "과제를 찾을 수 없습니다."
                 ));
 
-        if (!(a.isAuthor(me.getId()) || me.isLeader() || a.isTarget(me))) {
+        if (!(a.isAuthor(me.getId()) || me.isLeader()
+                || recipientRepository.existsByAssignmentIdAndMemberId(a.getId(), me.getId()))) {
             throw new CustomException(
                     HttpStatus.FORBIDDEN,
                     "조회 권한이 없습니다."
@@ -322,7 +313,7 @@ public class AssignmentService {
             }
         }
 
-        // DB에서 대상자 명단, 제출물, 과제 삭제
+        // DB에서 제출물과 과제 삭제
         recipientRepository.deleteAllByAssignmentId(assignmentId);
         submissionRepository.deleteAllByAssignmentId(assignmentId);
         assignmentRepository.delete(a);
