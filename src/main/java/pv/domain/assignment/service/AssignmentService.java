@@ -1,4 +1,3 @@
-
 package pv.domain.assignment.service;
 
 import lombok.RequiredArgsConstructor;
@@ -12,6 +11,7 @@ import pv.domain.assignment.dto.request.*;
 import pv.domain.assignment.dto.response.*;
 import pv.domain.assignment.entity.Assignment;
 import pv.domain.assignment.entity.Submission;
+import pv.domain.assignment.repository.AssignmentRecipientRepository;
 import pv.domain.assignment.repository.AssignmentRepository;
 import pv.domain.assignment.repository.SubmissionRepository;
 import pv.domain.files.service.FileService;
@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 public class AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
+    private final AssignmentRecipientRepository recipientRepository;
     private final SubmissionRepository submissionRepository;
     private final MemberRepository memberRepository;
     private final SkillRepository skillRepository;
@@ -56,12 +57,7 @@ public class AssignmentService {
         boolean received = type == AssignmentListType.RECEIVED;
 
         Page<Assignment> page = received
-                ? assignmentRepository.findReceived(
-                me.getTeamId(),
-                me.getId(),
-                me.getMajors(),
-                pageable
-        )
+                ? assignmentRepository.findReceived(me.getId(), pageable)
                 : assignmentRepository.findCreated(me.getId(), pageable);
 
         List<Long> ids = page.getContent()
@@ -172,7 +168,7 @@ public class AssignmentService {
 
         Set<Long> skillIds = validatedSkillIds(req.skillIds());
 
-        return assignmentRepository.save(new Assignment(
+        Assignment saved = assignmentRepository.save(new Assignment(
                 me.getTeamId(),
                 me,
                 req.title().strip(),
@@ -184,7 +180,23 @@ public class AssignmentService {
                 fileKeys,
                 skillIds,
                 now
-        )).getId();
+        ));
+
+        List<Long> recipientIds = switch (req.targetType()) {
+            case ALL -> memberRepository.findAssignmentBaseIds(me.getTeamId(), me.getId());
+            case MAJOR -> memberRepository.findAssignmentMajorIds(me.getTeamId(), me.getId(), majors);
+            case MEMBER -> memberIds.stream()
+                    .filter(id -> !id.equals(me.getId()))
+                    .toList();
+        };
+
+        for (int i = 0; i < recipientIds.size(); i += 1000) {
+            recipientRepository.insertAll(
+                    saved.getId(),
+                    recipientIds.subList(i, Math.min(i + 1000, recipientIds.size())));
+        }
+
+        return saved.getId();
     }
 
     // 3. 상세
@@ -198,7 +210,8 @@ public class AssignmentService {
                         "과제를 찾을 수 없습니다."
                 ));
 
-        if (!(a.isAuthor(me.getId()) || me.isLeader() || a.isTarget(me))) {
+        if (!(a.isAuthor(me.getId()) || me.isLeader()
+                || recipientRepository.existsByAssignmentIdAndMemberId(a.getId(), me.getId()))) {
             throw new CustomException(
                     HttpStatus.FORBIDDEN,
                     "조회 권한이 없습니다."
@@ -301,6 +314,7 @@ public class AssignmentService {
         }
 
         // DB에서 제출물과 과제 삭제
+        recipientRepository.deleteAllByAssignmentId(assignmentId);
         submissionRepository.deleteAllByAssignmentId(assignmentId);
         assignmentRepository.delete(a);
 

@@ -7,9 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import pv.domain.assignment.entity.Assignment;
-import pv.domain.member.entity.Major;
 
-import java.util.Collection;
 import java.util.Optional;
 
 public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
@@ -27,37 +25,18 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     @Query("select a from Assignment a where a.id = :id")
     Optional<Assignment> findByIdForUpdate(Long id);
 
-    // ALL은 보는 사람이 선배·부장이 아닐 때만 대상
     @Query(value = """
             select a from Assignment a join fetch a.author
-            where a.teamId = :teamId
-              and a.author.id <> :memberId
-              and ((a.targetType = pv.domain.assignment.entity.AssignmentTargetType.ALL
-                    and not exists (select 1 from Member me join me.roles r
-                                    where me.id = :memberId
-                                      and r in (pv.domain.member.entity.Role.SENIOR,
-                                                pv.domain.member.entity.Role.LEADER)))
-                   or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MEMBER
-                       and exists (select 1 from a.targetMemberIds t where t = :memberId))
-                   or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MAJOR
-                       and exists (select 1 from a.targetMajors tm where tm in :majors)))
+            where a.id in (select r.assignmentId from AssignmentRecipient r
+                           where r.memberId = :memberId)
             order by a.id desc
             """,
             countQuery = """
                     select count(a) from Assignment a
-                    where a.teamId = :teamId
-                      and a.author.id <> :memberId
-                      and ((a.targetType = pv.domain.assignment.entity.AssignmentTargetType.ALL
-                            and not exists (select 1 from Member me join me.roles r
-                                            where me.id = :memberId
-                                              and r in (pv.domain.member.entity.Role.SENIOR,
-                                                        pv.domain.member.entity.Role.LEADER)))
-                           or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MEMBER
-                               and exists (select 1 from a.targetMemberIds t where t = :memberId))
-                           or (a.targetType = pv.domain.assignment.entity.AssignmentTargetType.MAJOR
-                               and exists (select 1 from a.targetMajors tm where tm in :majors)))
+                    where a.id in (select r.assignmentId from AssignmentRecipient r
+                                   where r.memberId = :memberId)
                     """)
-    Page<Assignment> findReceived(Long teamId, Long memberId, Collection<Major> majors, Pageable pageable);
+    Page<Assignment> findReceived(Long memberId, Pageable pageable);
 
     @Query(value = """
             select a from Assignment a join fetch a.author

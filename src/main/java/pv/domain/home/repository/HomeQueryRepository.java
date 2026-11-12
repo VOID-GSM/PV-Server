@@ -22,30 +22,10 @@ public class HomeQueryRepository {
     private final EntityManager em;
 
     private static final String ASSIGNMENT_TARGETS_CTE = """
-            WITH targets AS (
-                SELECT a.id AS assignment_id, m.id AS member_id
-                FROM assignments a
-                JOIN member m ON m.team_id = a.team_id
-                WHERE a.target_type = 'ALL'
-                  AND m.status = 'JOINED'
-                  AND m.id <> a.author_id
-                UNION
-                SELECT a.id, m.id
-                FROM assignments a
-                JOIN assignment_target_majors tm ON tm.assignment_id = a.id
-                JOIN member_majors mm ON mm.major = tm.major
-                JOIN member m ON m.id = mm.member_id AND m.team_id = a.team_id
-                WHERE a.target_type = 'MAJOR'
-                  AND m.status = 'JOINED'
-                  AND m.id <> a.author_id
-                UNION
-                SELECT a.id, tm.member_id
-                FROM assignments a
-                JOIN assignment_target_members tm ON tm.assignment_id = a.id
-                WHERE a.target_type = 'MEMBER'
-                  AND tm.member_id IS NOT NULL
-            )
-            """;
+        WITH targets AS (
+            SELECT assignment_id, member_id FROM assignment_recipients
+        )
+        """;
 
     public List<SessionTodoRow> findTopicInputCandidates(Long memberId, LocalDate today) {
         return em.createQuery("""

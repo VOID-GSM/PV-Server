@@ -11,7 +11,7 @@ import pv.domain.assignment.dto.response.*;
 import pv.domain.assignment.entity.Assignment;
 import pv.domain.assignment.entity.Submission;
 import pv.domain.assignment.entity.SubmissionStatus;
-import pv.domain.assignment.repository.AssignmentMemberQueryRepository;
+import pv.domain.assignment.repository.AssignmentRecipientRepository;
 import pv.domain.assignment.repository.AssignmentRepository;
 import pv.domain.assignment.repository.SubmissionRepository;
 import pv.domain.member.entity.Member;
@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class SubmissionService {
     private final AssignmentRepository assignmentRepository;
+    private final AssignmentRecipientRepository recipientRepository;
     private final SubmissionRepository submissionRepository;
-    private final AssignmentMemberQueryRepository memberQueryRepository;
     private final MemberRepository memberRepository;
     private final AttachmentValidator attachmentValidator;
     private final Clock clock;
@@ -46,13 +46,7 @@ public class SubmissionService {
             throw new CustomException(HttpStatus.FORBIDDEN, "출제자 또는 부장만 제출 현황을 볼 수 있습니다.");
         }
 
-        Long teamId = a.getTeamId();
-        Long authorId = a.getAuthor().getId();
-        List<TargetMemberRow> targets = switch (a.getTargetType()) {
-            case ALL -> memberQueryRepository.findAllJoined(teamId, authorId);
-            case MAJOR -> memberQueryRepository.findJoinedByMajors(teamId, authorId, a.getTargetMajors());
-            case MEMBER -> memberQueryRepository.findJoinedByIds(teamId, authorId, a.getTargetMemberIds());
-        };
+        List<TargetMemberRow> targets = recipientRepository.findTargets(assignmentId);
 
         Map<Long, SubmissionRow> rows = submissionRepository.findRows(assignmentId).stream()
                 .collect(Collectors.toMap(SubmissionRow::submitterId, Function.identity()));
@@ -72,7 +66,7 @@ public class SubmissionService {
         Assignment a = assignmentRepository.findByIdForShare(assignmentId)
                 .filter(x -> x.getTeamId().equals(me.getTeamId()))
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "과제를 찾을 수 없습니다."));
-        if (!a.isTarget(me)) {
+        if (!recipientRepository.existsByAssignmentIdAndMemberId(a.getId(), me.getId())) {
             throw new CustomException(HttpStatus.FORBIDDEN, "과제 대상자만 제출할 수 있습니다.");
         }
         if (submissionRepository.existsByAssignmentIdAndSubmitterId(assignmentId, me.getId())) {
