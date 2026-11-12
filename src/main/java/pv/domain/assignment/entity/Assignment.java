@@ -95,15 +95,21 @@ public class Assignment {
         return author.getId().equals(memberId);
     }
 
-    // 출제자 본인은 대상자에서 제외. ALL은 선배·부장을 뺀 일반 부원만
+    // 출제자 본인 제외. 가입 완료 회원만. 개인 지정은 지정한 사람 그대로, ALL/MAJOR는 선배·부장 제외
     public boolean isTarget(Member member) {
-        if (!teamId.equals(member.getTeamId()) || isAuthor(member.getId())) {
+        if (!member.isJoined() || !teamId.equals(member.getTeamId()) || isAuthor(member.getId())) {
+            return false;
+        }
+        if (targetType == AssignmentTargetType.MEMBER) {
+            return targetMemberIds.contains(member.getId());
+        }
+        if (member.hasRole(Role.SENIOR) || member.hasRole(Role.LEADER)) {
             return false;
         }
         return switch (targetType) {
-            case ALL -> !member.hasRole(Role.SENIOR) && !member.hasRole(Role.LEADER);
+            case ALL -> true;
             case MAJOR -> member.getMajors().stream().anyMatch(targetMajors::contains);
-            case MEMBER -> targetMemberIds.contains(member.getId());
+            case MEMBER -> false;
         };
     }
 
