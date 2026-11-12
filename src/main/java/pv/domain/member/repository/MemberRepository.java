@@ -67,29 +67,32 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<String> findNameById(Long id);
 
     // 과제 대상자 계산 (ALL): 같은 팀, 가입 완료, 출제자·선배·부장 제외
-    @Query(value = """
-        select m.id from member m
-        where m.team_id = :teamId
-          and m.status = 'JOINED'
+    @Query("""
+
+            select m.id from Member m
+        where m.teamId = :teamId
+          and m.status = pv.domain.member.entity.MemberStatus.JOINED
           and m.id <> :authorId
-          and not exists (select 1 from member_roles r
-                          where r.member_id = m.id and r.role in ('SENIOR','LEADER'))
-        """, nativeQuery = true)
+          and not exists (select 1 from Member x join x.roles r
+                          where x.id = m.id
+                            and r in (pv.domain.member.entity.Role.SENIOR,
+                                      pv.domain.member.entity.Role.LEADER))
+        """)
     List<Long> findAssignmentBaseIds(@Param("teamId") Long teamId,
                                      @Param("authorId") Long authorId);
 
-    // 과제 대상자 계산 (MAJOR): 위 조건 + 지정 전공 보유
-    @Query(value = """
-        select distinct m.id from member m
-        join member_majors mm on mm.member_id = m.id
-        where m.team_id = :teamId
-          and m.status = 'JOINED'
+    @Query("""
+        select distinct m.id from Member m join m.majors mj
+        where m.teamId = :teamId
+          and m.status = pv.domain.member.entity.MemberStatus.JOINED
           and m.id <> :authorId
-          and mm.major in (:majors)
-          and not exists (select 1 from member_roles r
-                          where r.member_id = m.id and r.role in ('SENIOR','LEADER'))
-        """, nativeQuery = true)
+          and mj in :majors
+          and not exists (select 1 from Member x join x.roles r
+                          where x.id = m.id
+                            and r in (pv.domain.member.entity.Role.SENIOR,
+                                      pv.domain.member.entity.Role.LEADER))
+        """)
     List<Long> findAssignmentMajorIds(@Param("teamId") Long teamId,
                                       @Param("authorId") Long authorId,
-                                      @Param("majors") Collection<String> majors);
-}
+                                      @Param("majors") Collection<Major> majors);
+    }
