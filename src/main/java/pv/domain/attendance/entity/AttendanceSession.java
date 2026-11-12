@@ -7,6 +7,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -46,7 +47,8 @@ public class AttendanceSession {
         return checkInCode == null || checkInCode.equals(code);
     }
 
-    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Column(nullable = false)
+    @ColumnDefault("false")
     private boolean closed = false;
 
     public void close() {
