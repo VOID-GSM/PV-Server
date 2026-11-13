@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.util.Objects;
 import jakarta.persistence.EnumType;
@@ -56,7 +57,8 @@ public class Post {
 
     // 기존 데이터가 있어도 서버가 뜨도록 DB 기본값을 MANUAL로 지정
     @Enumerated(EnumType.STRING)
-    @Column(name = "source", nullable = false, columnDefinition = "varchar(10) default 'MANUAL'")
+    @Column(name = "source", nullable = false, length = 10)
+    @ColumnDefault("'MANUAL'")
     private ContentSource source;
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

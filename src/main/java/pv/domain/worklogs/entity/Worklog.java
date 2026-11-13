@@ -14,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.UpdateTimestamp;
 import pv.domain.board.entity.Board;
 import pv.domain.member.entity.Member;
@@ -49,7 +50,8 @@ public class Worklog {
 
     // 기존 데이터가 있어도 서버가 뜨도록 DB 기본값을 MANUAL로 지정
     @Enumerated(EnumType.STRING)
-    @Column(name = "source", nullable = false, columnDefinition = "varchar(10) default 'MANUAL'")
+    @Column(name = "source", nullable = false, length = 10)
+    @ColumnDefault("'MANUAL'")
     private ContentSource source;
     @Column(updatable = false)
     private LocalDateTime createdAt;

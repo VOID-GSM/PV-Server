@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import org.hibernate.annotations.ColumnDefault;
 import pv.global.entity.ContentSource;
 import pv.domain.member.entity.Member;
 
@@ -47,8 +48,10 @@ public class InterviewAnswer {
 
     // 기존 데이터가 있어도 서버가 뜨도록 DB 기본값을 MANUAL로 지정
     @Enumerated(EnumType.STRING)
-    @Column(name = "source", nullable = false, columnDefinition = "varchar(10) default 'MANUAL'")
+    @Column(name = "source", nullable = false, length = 10)
+    @ColumnDefault("'MANUAL'")
     private ContentSource source;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
