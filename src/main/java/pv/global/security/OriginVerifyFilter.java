@@ -23,7 +23,7 @@ public class OriginVerifyFilter extends OncePerRequestFilter {
     private final byte[] secret;
 
     public OriginVerifyFilter(@Value("${origin.verify-secret:}") String secret) {
-        this.secret = secret.getBytes(StandardCharsets.UTF_8);
+        this.secret = secret.strip().getBytes(StandardCharsets.UTF_8);
         if (this.secret.length == 0) {
             log.warn("origin.verify-secret is empty: origin header check is disabled");
         }
@@ -39,6 +39,8 @@ public class OriginVerifyFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String value = request.getHeader(HEADER);
         if (value == null || !MessageDigest.isEqual(secret, value.getBytes(StandardCharsets.UTF_8))) {
+            log.warn("origin verify failed: {} header, {} {}",
+                    value == null ? "missing" : "mismatched", request.getMethod(), request.getRequestURI());
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;
         }

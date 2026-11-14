@@ -62,4 +62,17 @@ class OriginVerifyFilterTest {
 
         assertThat(chain.getRequest()).isNotNull();
     }
+
+    @Test
+    @DisplayName("비밀 값 앞뒤 공백·개행은 무시한다")
+    void stripsSecretWhitespace() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(OriginVerifyFilter.HEADER, SECRET);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        new OriginVerifyFilter("  " + SECRET + "\n").doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+    }
 }
