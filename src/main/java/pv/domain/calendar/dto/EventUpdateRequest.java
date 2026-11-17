@@ -11,5 +11,6 @@ public record EventUpdateRequest(
         @Size(max = 2000) String memo,
         LocalDateTime startsAt,
         LocalDateTime endsAt,
-        Boolean allDay
+        Boolean allDay,
+        Boolean completed
 ) {}

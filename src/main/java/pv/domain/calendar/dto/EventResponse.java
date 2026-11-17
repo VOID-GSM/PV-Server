@@ -21,7 +21,8 @@ public record EventResponse(
         boolean allDay,
         Long boardId,
         Long activityId,
-        Long assigneeId
+        Long assigneeId,
+        Boolean completed
 ) {
     private static final Duration DEFAULT_SESSION_DURATION = Duration.ofHours(1);
 
@@ -29,14 +30,14 @@ public record EventResponse(
         return new EventResponse(e.getId(), e.getType(), e.getTitle(), e.getMemo(),
                 LocalDateTime.ofInstant(e.getStartsAt(), KST),
                 LocalDateTime.ofInstant(e.getEndsAt(), KST),
-                e.isAllDay(), e.getBoardId(), e.getActivityId(), null);
+                e.isAllDay(), e.getBoardId(), e.getActivityId(), null, e.isCompleted());
     }
 
     public static EventResponse from(CalendarDeadlinePort.DeadlineView d) {
         return new EventResponse(d.id(), EventType.DEADLINE, d.name(), null,
                 d.date().atStartOfDay(),
                 d.date().atTime(LocalTime.of(23, 59, 59)),
-                true, d.boardId(), null, d.assigneeId());
+                true, d.boardId(), null, d.assigneeId(), null);
     }
 
     public static EventResponse from(CalendarSessionPort.SessionView s) {
@@ -47,6 +48,6 @@ public record EventResponse(
                 ? s.date().atTime(LocalTime.of(23, 59, 59))
                 : startsAt.plus(DEFAULT_SESSION_DURATION);
         return new EventResponse(s.id(), EventType.ACTIVITY, title, s.topic(),
-                startsAt, endsAt, allDay, null, s.activityId(), null);
+                startsAt, endsAt, allDay, null, s.activityId(), null, null);
     }
 }
