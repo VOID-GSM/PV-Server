@@ -37,6 +37,7 @@ public class CalendarService {
     private final CalendarMembershipPort membership;
     private final CalendarDeadlinePort deadlinePort;
     private final CalendarSessionPort sessionPort;
+    private final Clock clock;
 
     public List<EventResponse> getCalendar(Long memberId, LocalDate from, LocalDate to,
                                            Set<Long> boardFilter, boolean mine) {
@@ -102,7 +103,7 @@ public class CalendarService {
         CalendarEvent event = findOwned(memberId, eventId);
         event.update(req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
         if (req.completed() != null) {
-            event.changeCompletion(req.completed(), Instant.now());
+            event.changeCompletion(req.completed(), Instant.now(clock));
         }
         return EventResponse.from(event);
     }
