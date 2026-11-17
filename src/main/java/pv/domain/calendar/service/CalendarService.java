@@ -101,6 +101,9 @@ public class CalendarService {
     public EventResponse update(Long memberId, Long eventId, EventUpdateRequest req) {
         CalendarEvent event = findOwned(memberId, eventId);
         event.update(req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
+        if (req.completed() != null) {
+            event.changeCompletion(req.completed(), Instant.now());
+        }
         return EventResponse.from(event);
     }
 
