@@ -68,6 +68,9 @@ public class CalendarEvent {
     @UpdateTimestamp
     private Instant updatedAt;
 
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
     public static CalendarEvent personal(Long ownerId, String title, String memo,
                                          Instant startsAt, Instant endsAt, boolean allDay) {
         Objects.requireNonNull(startsAt, "시작 시각은 필수입니다.");
@@ -105,5 +108,19 @@ public class CalendarEvent {
         if (endsAt.isBefore(startsAt)) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "종료 시각이 시작 시각보다 빠릅니다.");
         }
+    }
+
+    public void changeCompletion(boolean completed, Instant now) {
+        if (completed) {
+            if (this.completedAt == null) {
+                this.completedAt = now;
+            }
+        } else {
+            this.completedAt = null;
+        }
+    }
+
+    public boolean isCompleted() {
+        return completedAt != null;
     }
 }
