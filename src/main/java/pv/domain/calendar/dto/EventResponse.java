@@ -37,7 +37,7 @@ public record EventResponse(
         return new EventResponse(d.id(), EventType.DEADLINE, d.name(), null,
                 d.date().atStartOfDay(),
                 d.date().atTime(LocalTime.of(23, 59, 59)),
-                true, d.boardId(), null, d.assigneeId(), false);
+                true, d.boardId(), null, d.assigneeId(), null);
     }
 
     public static EventResponse from(CalendarSessionPort.SessionView s) {
@@ -48,6 +48,6 @@ public record EventResponse(
                 ? s.date().atTime(LocalTime.of(23, 59, 59))
                 : startsAt.plus(DEFAULT_SESSION_DURATION);
         return new EventResponse(s.id(), EventType.ACTIVITY, title, s.topic(),
-                startsAt, endsAt, allDay, null, s.activityId(), null, false);
+                startsAt, endsAt, allDay, null, s.activityId(), null, null);
     }
 }
