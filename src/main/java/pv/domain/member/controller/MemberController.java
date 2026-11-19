@@ -10,11 +10,13 @@ import pv.domain.member.dto.request.MyProfileUpdateRequest;
 import pv.domain.member.dto.request.ProfileImageUpdateRequest;
 import pv.domain.member.dto.request.RoleGrantRequest;
 import pv.domain.member.dto.response.MemberGetResponse;
+import pv.domain.member.dto.response.MemberProfileImageResponse;
 import pv.domain.member.dto.response.RoleGetResponse;
 import pv.domain.member.entity.Role;
 import pv.domain.member.service.MemberService;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/members")
@@ -100,5 +102,13 @@ public class MemberController {
     public ResponseEntity<Void> deleteProfileImage(@AuthenticationPrincipal Long loginMemberId) {
         memberService.deleteProfileImage(loginMemberId);
         return ResponseEntity.noContent().build();
+    }
+
+    // 프로필 사진 일괄 조회 (같은 팀 멤버)
+    @GetMapping("/profile-images")
+    public ResponseEntity<List<MemberProfileImageResponse>> getProfileImages(
+            @AuthenticationPrincipal Long loginMemberId,
+            @RequestParam Set<Long> ids) {
+        return ResponseEntity.ok(memberService.getProfileImages(loginMemberId, ids));
     }
 }
