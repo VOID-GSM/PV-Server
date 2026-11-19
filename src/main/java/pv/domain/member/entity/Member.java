@@ -79,8 +79,12 @@ public class Member {
         this.status = MemberStatus.JOINED;
     }
 
-    // 재입장: 부장은 승인 불필요, 나머지는 승인 기능이 켜져 있으면 다시 승인 대기
+    // 재입장: 이미 승인된 멤버는 상태 유지 (다른 기기에서 재입장해도 기존 기기가 막히지 않게)
+    // 부장은 승인 불필요, 나머지는 승인 대기 중인 경우에만 승인 기능 여부에 따라 상태 결정
     public void reEnter(boolean approvalRequired) {
+        if (this.status == MemberStatus.JOINED) {
+            return;
+        }
         if (roles.contains(Role.LEADER)) {
             this.status = MemberStatus.JOINED;
             return;
