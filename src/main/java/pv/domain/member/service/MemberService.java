@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import pv.domain.files.dto.FileDownloadResponse;
 import pv.domain.member.dto.request.MemberUpdateRequest;
 import pv.domain.member.dto.request.MyProfileUpdateRequest;
 import pv.domain.member.dto.request.RoleGrantRequest;
@@ -19,6 +20,7 @@ import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import pv.domain.member.dto.request.ProfileImageUpdateRequest;
 import pv.domain.files.service.FileService;
@@ -176,11 +178,18 @@ public class MemberService {
         if (memberIds.size() > MAX_PROFILE_IMAGE_IDS) {
             throw error(HttpStatus.BAD_REQUEST, "한 번에 최대 " + MAX_PROFILE_IMAGE_IDS + "명까지 조회할 수 있습니다.");
         }
-        return memberRepository.findAllById(memberIds).stream()
+
+        List<Member> members = memberRepository.findAllById(memberIds).stream()
                 .filter(m -> me.getTeamId().equals(m.getTeamId()))
                 .filter(m -> m.getProfileImageFileId() != null)
-                .map(m -> new MemberProfileImageResponse(
-                        m.getId(), fileService.getDownloadUrl(m.getProfileImageFileId())))
+                .toList();
+
+        Map<Long, FileDownloadResponse> images = fileService.getDownloadUrls(
+                members.stream().map(Member::getProfileImageFileId).toList());
+
+        return members.stream()
+                .filter(m -> images.containsKey(m.getProfileImageFileId()))
+                .map(m -> new MemberProfileImageResponse(m.getId(), images.get(m.getProfileImageFileId())))
                 .toList();
     }
 }
