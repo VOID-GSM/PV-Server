@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import pv.domain.files.service.FileService;
 
 @Slf4j
 @Service
@@ -46,6 +47,19 @@ public class FileService {
     private final FileRepository fileRepository;
     private final S3FileStorage fileStorage;
     private final StorageProperties properties;
+    private static final Set<String> PROFILE_IMAGE_TYPES = Set.of("image/png", "image/jpeg", "image/webp");
+
+    public void requireImage(Long ownerId, Long fileId) {
+        StoredFile file = fileRepository.findById(fileId)
+                .orElseThrow(() -> FileException.badRequest("존재하지 않는 파일입니다."));
+        if (!file.isOwnedBy(ownerId)) {
+            throw FileException.forbidden();
+        }
+        String type = baseContentType(file.getContentType());
+        if (!PROFILE_IMAGE_TYPES.contains(type)) {
+            throw FileException.badRequest("png, jpeg, webp 이미지만 프로필 사진으로 사용할 수 있습니다.");
+        }
+    }
 
     @Transactional
     public UploadUrlResponse issueUploadUrl(Long memberId, UploadUrlRequest request) {
