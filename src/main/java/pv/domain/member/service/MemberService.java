@@ -19,6 +19,8 @@ import pv.domain.member.repository.MemberRepository;
 
 import java.util.List;
 import java.util.Set;
+import pv.domain.member.dto.request.ProfileImageUpdateRequest;
+import pv.domain.files.service.FileService;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final GenerationRepository generationRepository;
+    private final FileService fileService;
 
     // ===== 본인 =====
 
@@ -126,5 +129,37 @@ public class MemberService {
 
     private ResponseStatusException error(HttpStatus status, String message) {
         return new ResponseStatusException(status, message);
+    }
+
+    // ===== 프로필 사진 (본인) =====
+
+    @Transactional
+    public MemberGetResponse updateProfileImage(Long loginMemberId, ProfileImageUpdateRequest request) {
+        Member member = findMember(loginMemberId);
+        Long oldFileId = member.getProfileImageFileId();
+
+        if (request.fileId().equals(oldFileId)) {
+            return MemberGetResponse.from(member);
+        }
+
+        fileService.requireImage(loginMemberId, request.fileId());
+        fileService.attachByIds(loginMemberId, List.of(request.fileId()));
+        member.changeProfileImage(request.fileId());
+
+        if (oldFileId != null) {
+            fileService.deleteByIds(loginMemberId, List.of(oldFileId));
+        }
+        return MemberGetResponse.from(member);
+    }
+
+    @Transactional
+    public void deleteProfileImage(Long loginMemberId) {
+        Member member = findMember(loginMemberId);
+        Long oldFileId = member.getProfileImageFileId();
+        if (oldFileId == null) {
+            return;
+        }
+        member.changeProfileImage(null);
+        fileService.deleteByIds(loginMemberId, List.of(oldFileId));
     }
 }
