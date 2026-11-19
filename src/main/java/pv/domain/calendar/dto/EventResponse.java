@@ -34,7 +34,7 @@ public record EventResponse(
     }
 
     public static EventResponse from(CalendarDeadlinePort.DeadlineView d) {
-        return new EventResponse(d.id(), EventType.DEADLINE, d.name(), null,
+        return new EventResponse(d.id(), EventType.DEADLINE, d.name(), d.description(),
                 d.date().atStartOfDay(),
                 d.date().atTime(LocalTime.of(23, 59, 59)),
                 true, d.boardId(), null, d.assigneeId(), null);
