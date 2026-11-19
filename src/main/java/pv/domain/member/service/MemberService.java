@@ -5,10 +5,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import pv.domain.files.dto.FileDownloadResponse;
 import pv.domain.member.dto.request.MemberUpdateRequest;
 import pv.domain.member.dto.request.MyProfileUpdateRequest;
 import pv.domain.member.dto.request.RoleGrantRequest;
 import pv.domain.member.dto.response.MemberGetResponse;
+import pv.domain.member.dto.response.MemberProfileImageResponse;
 import pv.domain.member.dto.response.RoleGetResponse;
 import pv.domain.member.entity.Generation;
 import pv.domain.member.entity.Member;
@@ -18,7 +20,10 @@ import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import pv.domain.member.dto.request.ProfileImageUpdateRequest;
+import pv.domain.files.service.FileService;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final GenerationRepository generationRepository;
+    private final FileService fileService;
 
     // ===== 본인 =====
 
@@ -126,5 +132,64 @@ public class MemberService {
 
     private ResponseStatusException error(HttpStatus status, String message) {
         return new ResponseStatusException(status, message);
+    }
+
+    // ===== 프로필 사진 (본인) =====
+
+    @Transactional
+    public MemberGetResponse updateProfileImage(Long loginMemberId, ProfileImageUpdateRequest request) {
+        Member member = findMember(loginMemberId);
+        Long oldFileId = member.getProfileImageFileId();
+
+        if (request.fileId().equals(oldFileId)) {
+            return MemberGetResponse.from(member);
+        }
+
+        fileService.requireImage(loginMemberId, request.fileId());
+        fileService.attachByIds(loginMemberId, List.of(request.fileId()));
+        member.changeProfileImage(request.fileId());
+
+        if (oldFileId != null) {
+            fileService.deleteByIds(loginMemberId, List.of(oldFileId));
+        }
+        return MemberGetResponse.from(member);
+    }
+
+    @Transactional
+    public void deleteProfileImage(Long loginMemberId) {
+        Member member = findMember(loginMemberId);
+        Long oldFileId = member.getProfileImageFileId();
+        if (oldFileId == null) {
+            return;
+        }
+        member.changeProfileImage(null);
+        fileService.deleteByIds(loginMemberId, List.of(oldFileId));
+    }
+
+    // ===== 프로필 사진 일괄 조회 (같은 팀 멤버) =====
+
+    private static final int MAX_PROFILE_IMAGE_IDS = 100;
+
+    public List<MemberProfileImageResponse> getProfileImages(Long loginMemberId, Set<Long> memberIds) {
+        Member me = findMember(loginMemberId);
+        if (!me.isJoined()) {
+            throw error(HttpStatus.FORBIDDEN, "가입이 완료된 팀원만 사용할 수 있습니다.");
+        }
+        if (memberIds.size() > MAX_PROFILE_IMAGE_IDS) {
+            throw error(HttpStatus.BAD_REQUEST, "한 번에 최대 " + MAX_PROFILE_IMAGE_IDS + "명까지 조회할 수 있습니다.");
+        }
+
+        List<Member> members = memberRepository.findAllById(memberIds).stream()
+                .filter(m -> me.getTeamId().equals(m.getTeamId()))
+                .filter(m -> m.getProfileImageFileId() != null)
+                .toList();
+
+        Map<Long, FileDownloadResponse> images = fileService.getDownloadUrls(
+                members.stream().map(Member::getProfileImageFileId).toList());
+
+        return members.stream()
+                .filter(m -> images.containsKey(m.getProfileImageFileId()))
+                .map(m -> new MemberProfileImageResponse(m.getId(), images.get(m.getProfileImageFileId())))
+                .toList();
     }
 }

@@ -113,4 +113,11 @@ public class Member {
             roles.add(Role.MEMBER);
         }
     }
+
+    // 프로필 사진 (StoredFile ID). 없으면 null
+    private Long profileImageFileId;
+
+    public void changeProfileImage(Long fileId) {
+        this.profileImageFileId = fileId;
+    }
 }

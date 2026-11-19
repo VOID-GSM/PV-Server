@@ -24,12 +24,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -46,6 +41,19 @@ public class FileService {
     private final FileRepository fileRepository;
     private final S3FileStorage fileStorage;
     private final StorageProperties properties;
+    private static final Set<String> PROFILE_IMAGE_TYPES = Set.of("image/png", "image/jpeg", "image/webp");
+
+    public void requireImage(Long ownerId, Long fileId) {
+        StoredFile file = fileRepository.findById(fileId)
+                .orElseThrow(() -> FileException.badRequest("존재하지 않는 파일입니다."));
+        if (!file.isOwnedBy(ownerId)) {
+            throw FileException.forbidden();
+        }
+        String type = baseContentType(file.getContentType());
+        if (!PROFILE_IMAGE_TYPES.contains(type)) {
+            throw FileException.badRequest("png, jpeg, webp 이미지만 프로필 사진으로 사용할 수 있습니다.");
+        }
+    }
 
     @Transactional
     public UploadUrlResponse issueUploadUrl(Long memberId, UploadUrlRequest request) {
@@ -268,5 +276,30 @@ public class FileService {
         String type = INLINE_TYPES.contains(baseContentType(file.getContentType())) ? "inline" : "attachment";
         String encoded = URLEncoder.encode(file.getOriginalName(), StandardCharsets.UTF_8).replace("+", "%20");
         return type + "; filename*=UTF-8''" + encoded;
+    }
+
+    // 여러 파일의 다운로드 URL을 한 번에 만든다. 없거나 업로드 전인 파일은 건너뛴다.
+    public Map<Long, FileDownloadResponse> getDownloadUrls(Collection<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, FileDownloadResponse> result = new HashMap<>();
+        for (StoredFile file : fileRepository.findAllById(fileIds.stream().distinct().toList())) {
+            if (!file.isUploaded()) {
+                continue;
+            }
+            PresignedUrl presigned = fileStorage.presignDownload(
+                    file.getObjectKey(),
+                    contentDisposition(file),
+                    properties.downloadUrlTtl());
+            result.put(file.getId(), new FileDownloadResponse(
+                    file.getId(),
+                    file.getOriginalName(),
+                    file.getContentType(),
+                    file.getSizeBytes(),
+                    presigned.url(),
+                    presigned.expiresAt()));
+        }
+        return result;
     }
 }

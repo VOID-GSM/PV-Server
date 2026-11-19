@@ -7,13 +7,16 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pv.domain.member.dto.request.MemberUpdateRequest;
 import pv.domain.member.dto.request.MyProfileUpdateRequest;
+import pv.domain.member.dto.request.ProfileImageUpdateRequest;
 import pv.domain.member.dto.request.RoleGrantRequest;
 import pv.domain.member.dto.response.MemberGetResponse;
+import pv.domain.member.dto.response.MemberProfileImageResponse;
 import pv.domain.member.dto.response.RoleGetResponse;
 import pv.domain.member.entity.Role;
 import pv.domain.member.service.MemberService;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/members")
@@ -84,5 +87,28 @@ public class MemberController {
             @PathVariable Role role) {
         memberService.removeRole(loginMemberId, memberId, role);
         return ResponseEntity.noContent().build();
+    }
+
+    // 프로필 사진 변경 (본인)
+    @PutMapping("/me/profile-image")
+    public ResponseEntity<MemberGetResponse> updateProfileImage(
+            @AuthenticationPrincipal Long loginMemberId,
+            @Valid @RequestBody ProfileImageUpdateRequest request) {
+        return ResponseEntity.ok(memberService.updateProfileImage(loginMemberId, request));
+    }
+
+    // 프로필 사진 삭제 (본인)
+    @DeleteMapping("/me/profile-image")
+    public ResponseEntity<Void> deleteProfileImage(@AuthenticationPrincipal Long loginMemberId) {
+        memberService.deleteProfileImage(loginMemberId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // 프로필 사진 일괄 조회 (같은 팀 멤버)
+    @GetMapping("/profile-images")
+    public ResponseEntity<List<MemberProfileImageResponse>> getProfileImages(
+            @AuthenticationPrincipal Long loginMemberId,
+            @RequestParam Set<Long> ids) {
+        return ResponseEntity.ok(memberService.getProfileImages(loginMemberId, ids));
     }
 }

@@ -9,12 +9,14 @@ import java.util.Set;
 
 public record MemberGetResponse(
         Long memberId, String name, Long generationId, Integer generation,
-        Set<Major> majors, Set<Role> roles, MemberStatus status) {
+        Set<Major> majors, Set<Role> roles, MemberStatus status,
+        Long profileImageFileId) {
 
     public static MemberGetResponse from(Member m) {
         return new MemberGetResponse(
                 m.getId(), m.getName(),
                 m.getGeneration().getId(), m.getGeneration().getNumber(),
-                Set.copyOf(m.getMajors()), Set.copyOf(m.getRoles()), m.getStatus());
+                Set.copyOf(m.getMajors()), Set.copyOf(m.getRoles()), m.getStatus(),
+                m.getProfileImageFileId());
     }
 }
