@@ -29,21 +29,31 @@ public class Deadline {
     // 마일스톤으로 확정된 마감인지
     private boolean milestone;
 
+    @Column(columnDefinition = "text")
+    private String description;
+
     private LocalDateTime createdAt;
 
-    public Deadline(Long boardId, String name, LocalDate deadlineDate, Long assigneeId, boolean milestone) {
+    public Deadline(Long boardId, String name, LocalDate deadlineDate, Long assigneeId,
+                    String description, boolean milestone) {
         this.boardId = boardId;
         this.name = name;
         this.deadlineDate = deadlineDate;
         this.assigneeId = assigneeId;
+        this.description = blankToNull(description);
         this.milestone = milestone;
         this.createdAt = LocalDateTime.now();
     }
 
     // null이 아닌 값만 수정
-    public void update(String name, LocalDate deadlineDate, Long assigneeId) {
+    public void update(String name, LocalDate deadlineDate, Long assigneeId, String description) {
         if (name != null) this.name = name;
         if (deadlineDate != null) this.deadlineDate = deadlineDate;
         if (assigneeId != null) this.assigneeId = assigneeId;
+        if (description != null) this.description = blankToNull(description);
+    }
+
+    private static String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
     }
 }

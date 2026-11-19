@@ -10,10 +10,11 @@ public record DeadlineResponse(
         LocalDate date,
         Long assigneeId,
         String assigneeName,
-        boolean milestone
+        boolean milestone,
+        String description
 ) {
     public static DeadlineResponse of(Deadline d, String assigneeName) {
         return new DeadlineResponse(d.getId(), d.getName(), d.getDeadlineDate(),
-                d.getAssigneeId(), assigneeName, d.isMilestone());
+                d.getAssigneeId(), assigneeName, d.isMilestone(), d.getDescription());
     }
 }

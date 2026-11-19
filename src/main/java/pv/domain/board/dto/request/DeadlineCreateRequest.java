@@ -9,6 +9,7 @@ import java.time.LocalDate;
 public record DeadlineCreateRequest(
         @NotBlank @Size(max = 100) String name,
         @NotNull LocalDate date,
-        Long assigneeId
+        Long assigneeId,
+        @Size(max = 2000) String description
 ) {
 }

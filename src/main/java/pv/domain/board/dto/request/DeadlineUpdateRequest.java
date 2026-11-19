@@ -9,6 +9,7 @@ import java.time.LocalDate;
 public record DeadlineUpdateRequest(
         @Size(max = 100) @Pattern(regexp = "(?s).*\\S.*", message = "공백만 입력할 수 없습니다.") String name,
         LocalDate date,
-        Long assigneeId
+        Long assigneeId,
+        @Size(max = 2000) String description
 ) {
 }

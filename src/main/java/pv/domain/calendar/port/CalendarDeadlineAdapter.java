@@ -30,7 +30,7 @@ public class CalendarDeadlineAdapter implements CalendarDeadlinePort {
                 .getResultList()
                 .stream()
                 .map(d -> new DeadlineView(d.getId(), d.getBoardId(), d.getName(),
-                        d.getDeadlineDate(), d.getAssigneeId()))
+                        d.getDeadlineDate(), d.getAssigneeId(), d.getDescription()))
                 .toList();
     }
 }
