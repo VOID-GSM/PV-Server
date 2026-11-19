@@ -69,18 +69,29 @@ public class ActivityService {
     ) {
         Member member = getMember(loginMemberId);
 
-        List<Activity> activities =
-                activityRepository.findAllByTeamIdOrderByIdDesc(member.getTeamId())
-                        .stream()
-                        .filter(a -> type == null || a.getType() == type)
-                        .filter(a -> status == null || a.getStatus() == status)
-                        .filter(a -> major == null
-                                || a.getTargetMajors().isEmpty()
-                                || a.getTargetMajors().contains(major))
-                        .filter(a -> generationId == null
-                                || a.getTargetGenerationIds().isEmpty()
-                                || a.getTargetGenerationIds().contains(generationId))
-                        .toList();
+        List<Activity> all = activityRepository.findAllByTeamIdOrderByIdDesc(member.getTeamId());
+        if (all.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> myActivityIds = new HashSet<>(
+                activityMemberRepository.findActivityIdsByMemberIdAndActivityIdIn(
+                        member.getId(),
+                        all.stream().map(Activity::getId).toList()));
+
+        List<Activity> activities = all.stream()
+                .filter(a -> member.isLeader()
+                        || myActivityIds.contains(a.getId())
+                        || isEligible(member, a))
+                .filter(a -> type == null || a.getType() == type)
+                .filter(a -> status == null || a.getStatus() == status)
+                .filter(a -> major == null
+                        || a.getTargetMajors().isEmpty()
+                        || a.getTargetMajors().contains(major))
+                .filter(a -> generationId == null
+                        || a.getTargetGenerationIds().isEmpty()
+                        || a.getTargetGenerationIds().contains(generationId))
+                .toList();
 
         return toSummaries(activities, member.getId());
     }
@@ -380,6 +391,20 @@ public class ActivityService {
         }
 
         return ApplicationResponse.of(application, member.getName());
+    }
+
+    // 전공과 기수를 모두 만족해야 대상자. 비어 있는 조건은 전체 허용.
+    private boolean isEligible(Member member, Activity activity) {
+        Set<Major> majors = activity.getTargetMajors();
+        boolean majorOk = majors.isEmpty()
+                || !Collections.disjoint(majors, member.getMajors());
+
+        Set<Long> generationIds = activity.getTargetGenerationIds();
+        boolean generationOk = generationIds.isEmpty()
+                || (member.getGeneration() != null
+                && generationIds.contains(member.getGeneration().getId()));
+
+        return majorOk && generationOk;
     }
 
     public List<ApplicationResponse> getApplications(
@@ -980,17 +1005,13 @@ public class ActivityService {
         return member;
     }
 
-    // 다른 팀의 활동은 존재하지 않는 것처럼 404
-    private Activity getActivityOf(
-            Member member,
-            Long activityId
-    ) {
+    private Activity getActivityOf(Member member, Long activityId) {
         return activityRepository.findById(activityId)
                 .filter(a -> a.getTeamId().equals(member.getTeamId()))
-                .orElseThrow(() -> error(
-                        HttpStatus.NOT_FOUND,
-                        "존재하지 않는 활동입니다."
-                ));
+                .filter(a -> member.isLeader()
+                        || isEligible(member, a)
+                        || activityMemberRepository.existsByActivityIdAndMemberId(activityId, member.getId()))
+                .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 활동입니다."));
     }
 
     // 변경 작업용: 활동 행을 잠그고 조회
