@@ -1,8 +1,8 @@
-name: Deploy to EC2
+name: Deploy prod (EC2)
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04-arm
     env:
       INSTANCE_ID: ${{ vars.INSTANCE_ID }}
