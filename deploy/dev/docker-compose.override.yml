@@ -1,0 +1,61 @@
+services:
+  backend:
+    ports: !reset []
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      STORAGE_BUCKET: pv-files
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: ${STORAGE_PUBLIC_ENDPOINT}
+      STORAGE_PATH_STYLE: "true"
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      ORIGIN_VERIFY_SECRET: ""
+
+  gateway:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ${WEB_DIR:-./web}:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+      - minio
+    mem_limit: 64m
+
+  minio:
+    image: pgsty/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ${MINIO_DATA_DIR:-./.data/minio}:/data
+    mem_limit: 512m
+
+  storage-init:
+    image: amazon/aws-cli:latest
+    profiles: ["init"]
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_REGION: ap-northeast-2
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        # 포크 이미지에 curl/mc가 있는지 보장할 수 없어서 헬스체크 대신 여기서 최대 60초 재시도
+        for i in $$(seq 30); do
+          aws --endpoint-url http://minio:9000 s3api head-bucket --bucket pv-files 2>/dev/null && exit 0
+          aws --endpoint-url http://minio:9000 s3api create-bucket --bucket pv-files && exit 0
+          sleep 2
+        done
+        exit 1

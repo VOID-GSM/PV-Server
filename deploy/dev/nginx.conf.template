@@ -1,0 +1,55 @@
+# 학교 서버(dev) 게이트웨이. 운영 CloudFront 경로 라우팅(ADR-002)과 같은 구조.
+#   /            → PV-Web 정적 파일 (/srv/pv-dev/web)
+#   /api/*       → backend:8081
+#   /pv-files/*  → minio:9000 (presigned URL, path-style)
+# ${PUBLIC_HOST} 는 nginx 이미지가 시작할 때 환경변수로 치환함 (envsubst). 나머지 $변수는 nginx 변수.
+
+# 학교 HTTPS 프록시가 붙여준 X-Forwarded-Proto를 그대로 넘기고, 없으면 현재 scheme 사용
+map $http_x_forwarded_proto $fwd_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    # Docker 내장 DNS. backend가 재생성돼 IP가 바뀌어도 다시 조회하게 함 (안 하면 배포 후 502)
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    # Notion import(zip) 업로드 50MB + 여유
+    client_max_body_size 60m;
+
+    root /usr/share/nginx/html;
+
+    location /api/ {
+        set $backend http://backend:8081;
+        proxy_pass $backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $fwd_proto;
+        proxy_read_timeout 120s;
+    }
+
+    location /pv-files/ {
+        set $minio http://minio:9000;
+        proxy_pass $minio;
+        # presigned URL 서명에 들어간 host와 반드시 같아야 함.
+        # 학교 프록시가 Host를 바꿔 보내더라도 여기서 공개 도메인으로 고정.
+        proxy_set_header Host ${PUBLIC_HOST};
+        proxy_request_buffering off;
+        proxy_buffering off;
+    }
+
+    # 빌드 해시가 붙은 파일은 영구 캐시 (운영 S3 업로드 설정과 동일)
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # SPA: 없는 경로는 index.html로
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}
