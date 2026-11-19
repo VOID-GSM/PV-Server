@@ -29,13 +29,18 @@ public class Deadline {
     // 마일스톤으로 확정된 마감인지
     private boolean milestone;
 
+    @Column(columnDefinition = "text")
+    private String description;
+
     private LocalDateTime createdAt;
 
-    public Deadline(Long boardId, String name, LocalDate deadlineDate, Long assigneeId, boolean milestone) {
+    public Deadline(Long boardId, String name, LocalDate deadlineDate, Long assigneeId,
+                    String description, boolean milestone) {
         this.boardId = boardId;
         this.name = name;
         this.deadlineDate = deadlineDate;
         this.assigneeId = assigneeId;
+        this.description = blackToNull(description);
         this.milestone = milestone;
         this.createdAt = LocalDateTime.now();
     }
@@ -45,5 +50,9 @@ public class Deadline {
         if (name != null) this.name = name;
         if (deadlineDate != null) this.deadlineDate = deadlineDate;
         if (assigneeId != null) this.assigneeId = assigneeId;
+    }
+
+    private static String blackToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
     }
 }

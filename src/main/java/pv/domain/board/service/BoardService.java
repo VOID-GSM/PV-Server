@@ -119,7 +119,7 @@ public class BoardService {
         validateAssignee(leader, request.assigneeId());
 
         Deadline deadline = deadlineRepository.save(
-                new Deadline(boardId, request.name(), request.date(), request.assigneeId(), false));
+                new Deadline(boardId, request.name(), request.date(), request.assigneeId(), request.description(), false));
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
@@ -187,7 +187,7 @@ public class BoardService {
                 .toList());
 
         List<Deadline> saved = deadlineRepository.saveAll(request.milestones().stream()
-                .map(m -> new Deadline(boardId, m.name(), m.date(), m.assigneeId(), true))
+                .map(m -> new Deadline(boardId, m.name(), m.date(), m.assigneeId(), null, true))
                 .toList());
 
         // 다른 보드 마감과 겹치는지 검사 (겹쳐도 저장은 유지, 경고로 반환)
