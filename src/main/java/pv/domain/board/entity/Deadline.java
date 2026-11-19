@@ -40,19 +40,20 @@ public class Deadline {
         this.name = name;
         this.deadlineDate = deadlineDate;
         this.assigneeId = assigneeId;
-        this.description = blackToNull(description);
+        this.description = blankToNull(description);
         this.milestone = milestone;
         this.createdAt = LocalDateTime.now();
     }
 
     // null이 아닌 값만 수정
-    public void update(String name, LocalDate deadlineDate, Long assigneeId) {
+    public void update(String name, LocalDate deadlineDate, Long assigneeId, String description) {
         if (name != null) this.name = name;
         if (deadlineDate != null) this.deadlineDate = deadlineDate;
         if (assigneeId != null) this.assigneeId = assigneeId;
+        if (description != null) this.description = blankToNull(description);
     }
 
-    private static String blackToNull(String s) {
+    private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
     }
 }

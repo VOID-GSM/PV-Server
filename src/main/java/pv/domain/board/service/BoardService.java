@@ -134,7 +134,7 @@ public class BoardService {
         validateAssignee(leader, request.assigneeId());
 
         Deadline deadline = findDeadline(deadlineId, boardId);
-        deadline.update(request.name(), request.date(), request.assigneeId());
+        deadline.update(request.name(), request.date(), request.assigneeId(), request.description());
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
