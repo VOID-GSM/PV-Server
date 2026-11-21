@@ -30,15 +30,6 @@ class ActuatorHealthIntegrationTest {
     }
 
     @Test
-    @DisplayName("헬스체크 외 Actuator 엔드포인트는 외부에 열리지 않는다")
-    void otherEndpointsAreNotPublic() throws Exception {
-        mockMvc.perform(get("/actuator/env"))
-                .andExpect(status().is4xxClientError());
-        mockMvc.perform(get("/actuator"))
-                .andExpect(status().is4xxClientError());
-    }
-
-    @Test
     @DisplayName("로그인하지 않으면 health 외 Actuator 경로는 401이다")
     void otherEndpointsRequireAuthentication() throws Exception {
         mockMvc.perform(get("/actuator/env"))
