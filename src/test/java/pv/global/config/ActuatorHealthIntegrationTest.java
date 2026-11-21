@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -35,5 +36,22 @@ class ActuatorHealthIntegrationTest {
                 .andExpect(status().is4xxClientError());
         mockMvc.perform(get("/actuator"))
                 .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    @DisplayName("로그인하지 않으면 health 외 Actuator 경로는 401이다")
+    void otherEndpointsRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/actuator/env"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("로그인해도 health 외 Actuator 엔드포인트는 노출되지 않는다(404)")
+    void otherEndpointsAreNotExposed() throws Exception {
+        mockMvc.perform(get("/actuator/env"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/actuator"))
+                .andExpect(status().isNotFound());
     }
 }
