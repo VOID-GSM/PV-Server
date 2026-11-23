@@ -59,7 +59,7 @@ public class AuthController {
 
     // 세션 유지 (누구나)
     @PostMapping("/refresh")
-    public ResponseEntity<TokenRefreshResponse> refresh(
+    public ResponseEntity<RefreshSessionResponse> refresh(
             @Valid @RequestBody TokenRefreshRequest request) {
         return ResponseEntity.ok(authService.refresh(request));
     }

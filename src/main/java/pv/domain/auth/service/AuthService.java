@@ -139,7 +139,7 @@ public class AuthService {
     // ===== 세션 =====
 
     @Transactional
-    public TokenRefreshResponse refresh(TokenRefreshRequest request) {
+    public RefreshSessionResponse refresh(TokenRefreshRequest request) {
         RefreshToken saved = refreshTokenRepository.findByToken(request.refreshToken())
                 .orElseThrow(() -> error(HttpStatus.UNAUTHORIZED, "유효하지 않은 refresh 토큰입니다."));
 
@@ -148,9 +148,15 @@ public class AuthService {
             throw error(HttpStatus.UNAUTHORIZED, "만료된 refresh 토큰입니다.");
         }
 
+        // 승인 대기/가입 여부를 프론트가 문구 대신 값으로 구분할 수 있게 함께 내려줌
+        Member member = findMember(saved.getMemberId());
+
         // 토큰 값은 유지하고 만료일만 오늘부터 30일로 연장
         saved.extend(LocalDateTime.now().plusDays(REFRESH_TOKEN_DAYS));
-        return new TokenRefreshResponse(jwtProvider.createAccessToken(saved.getMemberId()), saved.getToken());
+        return new RefreshSessionResponse(
+                jwtProvider.createAccessToken(saved.getMemberId()),
+                saved.getToken(),
+                member.getStatus());
     }
 
     // ===== 재입장 =====
