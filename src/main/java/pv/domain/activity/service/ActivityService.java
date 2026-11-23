@@ -1,6 +1,8 @@
 package pv.domain.activity.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
+import pv.domain.notification.event.DiscordNoticeEvent;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +57,7 @@ public class ActivityService {
     private final MemberRepository memberRepository;
     private final GenerationRepository generationRepository;
     private final AttendanceService attendanceService; // [출석]
+    private final ApplicationEventPublisher eventPublisher;
 
     // ===== 활동 =====
 
@@ -192,6 +195,22 @@ public class ActivityService {
                     memberIds
             );
         }
+
+        // 디스코드 알림 (대상 기수 태그는 테스트용으로 '@ 10' 형태)
+        String generationTags = generationIds.isEmpty()
+                ? ""
+                : generationRepository.findAllById(generationIds).stream()
+                        .map(Generation::getNumber)
+                        .sorted()
+                        .map(n -> "@ " + n)
+                        .collect(Collectors.joining(" ")) + "\n";
+
+        eventPublisher.publishEvent(
+                new DiscordNoticeEvent(
+                        activity.getTeamId(),
+                        generationTags + "새 활동이 생성되었어요\n>  " + activity.getName()
+                )
+        );
 
         return ActivitySummaryResponse.of(activity, 1, true);
     }
