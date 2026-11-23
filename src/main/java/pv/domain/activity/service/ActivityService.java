@@ -241,6 +241,10 @@ public class ActivityService {
                         ))
                         .toList();
 
+        String myApplicationStatus = applicationRepository
+                .findByActivityIdAndMemberId(activityId, member.getId())
+                .map(a -> a.getStatus().name())
+                .orElse("NONE");
         return ActivityDetailResponse.of(
                 activity,
                 ActivitySummaryResponse.of(
@@ -249,12 +253,10 @@ public class ActivityService {
                         members.stream().anyMatch(m -> m.getMemberId().equals(member.getId()))),
                 generations,
                 members.stream()
-                        .map(m -> ActivityMemberResponse.of(
-                                m,
-                                names.get(m.getMemberId())
-                        ))
+                        .map(m -> ActivityMemberResponse.of(m, names.get(m.getMemberId())))
                         .toList(),
-                upcoming
+                upcoming,
+                myApplicationStatus
         );
     }
 
@@ -343,17 +345,20 @@ public class ActivityService {
 
         validateEligible(member, activity);
 
-        if (activityMemberRepository.existsByActivityIdAndMemberId(
-                activityId,
-                member.getId()
-        ) || applicationRepository.existsByActivityIdAndMemberId(
-                activityId,
-                member.getId()
-        )) {
-            throw error(
-                    HttpStatus.CONFLICT,
-                    "이미 신청했거나 참여 중인 활동입니다."
-            );
+        if (activityMemberRepository.existsByActivityIdAndMemberId(activityId, member.getId())) {
+            throw error(HttpStatus.CONFLICT, "이미 신청했거나 참여 중인 활동입니다.");
+        }
+
+        Optional<ActivityApplication> previous =
+                applicationRepository.findByActivityIdAndMemberId(activityId, member.getId());
+
+        if (previous.isPresent()) {
+            if (previous.get().getStatus() != ApplicationStatus.REJECTED) {
+                throw error(HttpStatus.CONFLICT, "이미 신청했거나 참여 중인 활동입니다.");
+            }
+            // 거절된 이전 신청서는 지우고 새로 신청
+            applicationRepository.delete(previous.get());
+            applicationRepository.flush();
         }
 
         ActivityApplication application;
