@@ -17,7 +17,8 @@ public record ActivityDetailResponse(
         DayOfWeek repeatDayOfWeek, LocalTime repeatTime,
         int topicOpenDaysBefore,
         List<ActivityMemberResponse> members,
-        List<SessionResponse> upcomingSessions
+        List<SessionResponse> upcomingSessions,
+        String myApplicationStatus
 ) {
     public record GenerationItem(Long id, Integer number) {
     }
@@ -25,11 +26,12 @@ public record ActivityDetailResponse(
     public static ActivityDetailResponse of(Activity a, ActivitySummaryResponse summary,
                                             List<GenerationItem> targetGenerations,
                                             List<ActivityMemberResponse> members,
-                                            List<SessionResponse> upcomingSessions) {
+                                            List<SessionResponse> upcomingSessions,
+                                            String myApplicationStatus) {
         return new ActivityDetailResponse(summary, a.getDescription(),
                 a.getTargetMajors().stream().sorted().toList(), targetGenerations,
                 a.getTopicMode(), a.getTopicMode().getLabel(),
                 a.getRepeatDayOfWeek(), a.getRepeatTime(), a.getTopicOpenDaysBefore(),
-                members, upcomingSessions);
+                members, upcomingSessions, myApplicationStatus);
     }
 }
