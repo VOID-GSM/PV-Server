@@ -31,6 +31,9 @@ public record NoticeCreateRequest(
 
         @NotBlank(message = "내용은 필수입니다.")
         @Size(max = 5000, message = "내용은 5000자 이하여야 합니다.")
-        String content
+        String content,
+
+        // 알림 채널에서 '디스코드 웹훅'을 선택했는지 (null이면 보내지 않음)
+        Boolean discordEnabled
 ) {
 }
