@@ -1,6 +1,6 @@
 package pv.domain.board.service;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -9,7 +9,11 @@ import pv.domain.board.entity.BoardStatus;
 import pv.domain.board.entity.Deadline;
 import pv.domain.board.repository.BoardRepository;
 import pv.domain.notification.entity.NotificationType;
+import pv.domain.notification.event.DeadlineAlertEvent;
 import pv.domain.notification.service.NotificationService;
+import pv.domain.board.repository.DeadlineRepository;
+import java.time.temporal.ChronoUnit;
+import java.util.function.Function;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -21,7 +25,7 @@ import java.util.stream.Collectors;
 public class DeadlineAlertService {
     private final Clock clock;
     private final BoardRepository boardRepository;
-    private final DeadlineAlertService deadlineAlertService;
+    private final DeadlineRepository deadlineRepository;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
 
