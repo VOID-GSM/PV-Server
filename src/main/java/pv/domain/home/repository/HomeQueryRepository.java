@@ -164,13 +164,12 @@ public class HomeQueryRepository {
 
     public List<IdCountRow> countActiveBoardsByAssignee(Long teamId) {
         return em.createQuery("""
-                    select new pv.domain.home.repository.IdCountRow(d.assigneeId, count(distinct d.boardId))
-                    from Deadline d, Board b
-                    where b.id = d.boardId
-                      and b.teamId = :teamId
+                    select new pv.domain.home.repository.IdCountRow(a, count(distinct d.boardId))
+                    from Deadline d join d.assigneeIds a
+                    join Board b on b.id = d.boardId
+                    where b.teamId = :teamId
                       and b.status = :active
-                      and d.assigneeId is not null
-                    group by d.assigneeId
+                    group by a
                     """, IdCountRow.class)
                 .setParameter("teamId", teamId)
                 .setParameter("active", BoardStatus.ACTIVE)
@@ -179,14 +178,13 @@ public class HomeQueryRepository {
 
     public List<IdCountRow> countWeeklyDeadlinesByAssignee(Long teamId, LocalDate weekStart, LocalDate weekEnd) {
         return em.createQuery("""
-                    select new pv.domain.home.repository.IdCountRow(d.assigneeId, count(d))
-                    from Deadline d, Board b
-                    where b.id = d.boardId
-                      and b.teamId = :teamId
+                    select new pv.domain.home.repository.IdCountRow(a, count(d))
+                    from Deadline d join d.assigneeIds a
+                    join Board b on b.id = d.boardId
+                    where b.teamId = :teamId
                       and b.status = :active
-                      and d.assigneeId is not null
                       and d.deadlineDate between :weekStart and :weekEnd
-                    group by d.assigneeId
+                    group by a
                     """, IdCountRow.class)
                 .setParameter("teamId", teamId)
                 .setParameter("active", BoardStatus.ACTIVE)
