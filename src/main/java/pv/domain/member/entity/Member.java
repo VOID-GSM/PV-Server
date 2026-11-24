@@ -45,8 +45,8 @@ public class Member {
 
     private LocalDateTime createdAt;
 
-    // 디스코드 태그용 (현재는 테스트로 디스코드 사용자명을 저장한다. 없으면 태그하지 않는다)
-    @Column(name = "discord_id")
+    // 디스코드 사용자 ID(숫자). 멘션용이며 관리자가 DB에 직접 등록한다. 없으면 멘션하지 않는다.
+    @Column(name = "discord_id", length = 20)
     private String discordId;
 
     // 가입 시 기본 역할은 MEMBER
