@@ -62,6 +62,10 @@ public class Notice {
     // 마지막 재알림 시각 (재알림 간격 제한용)
     private LocalDateTime lastRemindedAt;
 
+    // 작성 시 '디스코드 웹훅' 알림 채널을 선택했는지 (재알림도 이 값을 따른다)
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean discordEnabled;
+
     public Notice(Long teamId, Long authorId, NoticeScope scope, Long boardId, Long activityId,
                   Set<Long> generationIds, Set<Major> majors,
                   String title, String content, LocalDateTime now) {
@@ -99,5 +103,9 @@ public class Notice {
 
     public void markReminded(LocalDateTime now) {
         this.lastRemindedAt = now;
+    }
+
+    public void enableDiscord() {
+        this.discordEnabled = true;
     }
 }

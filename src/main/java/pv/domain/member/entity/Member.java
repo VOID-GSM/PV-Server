@@ -45,6 +45,10 @@ public class Member {
 
     private LocalDateTime createdAt;
 
+    // 디스코드 태그용 (현재는 테스트로 디스코드 사용자명을 저장한다. 없으면 태그하지 않는다)
+    @Column(name = "discord_id")
+    private String discordId;
+
     // 가입 시 기본 역할은 MEMBER
     public Member(Long teamId, String name, Generation generation, Set<Major> majors, MemberStatus status) {
         this.teamId = teamId;
