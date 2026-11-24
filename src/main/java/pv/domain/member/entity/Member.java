@@ -71,6 +71,14 @@ public class Member {
                 && (roles.contains(Role.LEADER) || roles.contains(required));
     }
 
+    // 현재 활동 기수보다 낮은 기수면 선배 (기수가 없으면 선배 아님)
+    public boolean isSeniorOf(int currentGenerationNumber) {
+        return status == MemberStatus.JOINED
+                && generation != null
+                && generation.getNumber() != null
+                && generation.getNumber() < currentGenerationNumber;
+    }
+
     public boolean isJoined() {
         return this.status == MemberStatus.JOINED;
     }
