@@ -20,6 +20,7 @@ import pv.domain.member.repository.MemberRepository;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -116,10 +117,10 @@ public class BoardService {
         Member leader = getLeader(loginMemberId);
         Board board = getBoardForUpdate(leader, boardId);
         validateActive(board);
-        validateAssignee(leader, request.assigneeId());
+        validateAssignees(leader, request.assigneeIds());
 
         Deadline deadline = deadlineRepository.save(
-                new Deadline(boardId, request.name(), request.date(), request.assigneeId(), request.description(), false));
+                new Deadline(boardId, request.name(), request.date(), request.assigneeIds(), request.description(), false));
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
@@ -131,10 +132,10 @@ public class BoardService {
         Member leader = getLeader(loginMemberId);
         Board board = getBoardForUpdate(leader, boardId);
         validateActive(board);
-        validateAssignee(leader, request.assigneeId());
+        validateAssignees(leader, request.assigneeIds());
 
         Deadline deadline = findDeadline(deadlineId, boardId);
-        deadline.update(request.name(), request.date(), request.assigneeId(), request.description());
+        deadline.update(request.name(), request.date(), request.assigneeIds(), request.description());
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
@@ -183,11 +184,13 @@ public class BoardService {
         Board board = getBoardForUpdate(leader, boardId);
         validateActive(board);
         validateAssignees(leader, request.milestones().stream()
-                .map(MilestoneConfirmRequest.Item::assigneeId)
+                .map(MilestoneConfirmRequest.Item::assigneeIds)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
                 .toList());
 
         List<Deadline> saved = deadlineRepository.saveAll(request.milestones().stream()
-                .map(m -> new Deadline(boardId, m.name(), m.date(), m.assigneeId(), null, true))
+                .map(m -> new Deadline(boardId, m.name(), m.date(), m.assigneeIds(), null, true))
                 .toList());
 
         // 다른 보드 마감과 겹치는지 검사 (겹쳐도 저장은 유지, 경고로 반환)
@@ -236,12 +239,9 @@ public class BoardService {
         }
     }
 
-    private void validateAssignee(Member leader, Long assigneeId) {
-        validateAssignees(leader, Collections.singletonList(assigneeId));
-    }
-
     // 담당자는 같은 팀의 가입 완료(JOINED) 멤버여야 함. 여러 명이어도 한 번의 쿼리로 검증
     private void validateAssignees(Member leader, Collection<Long> assigneeIds) {
+        if (assigneeIds == null) return;
         Set<Long> ids = assigneeIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
         if (ids.isEmpty()) return;
 
@@ -254,22 +254,34 @@ public class BoardService {
     }
 
     // 대상 마감과 같은 담당자·같은 날짜에 이미 잡힌 다른 마감 찾기 (종료된 보드의 마감은 제외)
+    // 담당자가 여러 명이면 그중 한 명이라도 같은 날짜에 다른 마감이 있으면 겹침
     // excludeBoardId가 있으면 해당 보드의 마감은 검사 대상에서 제외
     private List<ConflictWarning> findConflicts(List<Deadline> targets, Long excludeBoardId) {
-        Map<Long, Set<LocalDate>> datesByAssignee = new HashMap<>();
-        for (Deadline t : targets) {
-            if (t.getAssigneeId() == null) continue;
-            datesByAssignee.computeIfAbsent(t.getAssigneeId(), k -> new HashSet<>()).add(t.getDeadlineDate());
-        }
-        if (datesByAssignee.isEmpty()) return List.of();
+        record Slot(Long memberId, LocalDate date) {}
 
+        Set<Slot> slots = new HashSet<>();
+        for (Deadline t : targets) {
+            for (Long memberId : t.getAssigneeIds()) {
+                slots.add(new Slot(memberId, t.getDeadlineDate()));
+            }
+        }
+        if (slots.isEmpty()) return List.of();
+
+        Set<Long> memberIds = slots.stream().map(Slot::memberId).collect(Collectors.toSet());
+        Set<LocalDate> dates = slots.stream().map(Slot::date).collect(Collectors.toSet());
         Set<Long> targetIds = targets.stream().map(Deadline::getId).collect(Collectors.toSet());
-        List<Deadline> found = new ArrayList<>();
-        datesByAssignee.forEach((assigneeId, dates) ->
-                deadlineRepository.findAllByAssigneeIdAndDeadlineDateIn(assigneeId, dates).stream()
-                        .filter(d -> !targetIds.contains(d.getId()))
-                        .filter(d -> excludeBoardId == null || !d.getBoardId().equals(excludeBoardId))
-                        .forEach(found::add));
+
+        Function<Deadline, List<Long>> overlapped = d -> d.getAssigneeIds().stream()
+            .filter(m -> slots.contains(new Slot(m, d.getDeadlineDate())))
+            .sorted()
+            .toList();
+
+        List<Deadline> found = deadlineRepository.findAllByAnyAssigneeAndDateIn(memberIds, dates).stream()
+            .filter(d -> !targetIds.contains(d.getId()))
+            .filter(d -> excludeBoardId == null || !d.getBoardId().equals(excludeBoardId))
+            .filter(d -> !overlapped.apply(d).isEmpty())
+            .toList();
+
         if (found.isEmpty()) return List.of();
 
         Map<Long, Board> boards = new HashMap<>();
@@ -283,14 +295,14 @@ public class BoardService {
                 })
                 .sorted(Comparator.comparing(Deadline::getDeadlineDate).thenComparing(Deadline::getId))
                 .map(d -> new ConflictWarning(d.getId(), d.getBoardId(),
-                        boards.get(d.getBoardId()).getName(), d.getName(), d.getDeadlineDate()))
+                        boards.get(d.getBoardId()).getName(), d.getName(), d.getDeadlineDate(),
+                    overlapped.apply(d)))
                 .toList();
     }
 
     private Set<Long> assigneeIds(List<Deadline> deadlines) {
         return deadlines.stream()
-                .map(Deadline::getAssigneeId)
-                .filter(Objects::nonNull)
+                .flatMap(d -> d.getAssigneeIds().stream())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
@@ -308,7 +320,7 @@ public class BoardService {
 
     private List<DeadlineResponse> toResponses(List<Deadline> deadlines, Map<Long, String> names) {
         return deadlines.stream()
-                .map(d -> DeadlineResponse.of(d, d.getAssigneeId() == null ? null : names.get(d.getAssigneeId())))
+                .map(d -> DeadlineResponse.of(d, names))
                 .toList();
     }
 

@@ -3,18 +3,26 @@ package pv.domain.board.dto.response;
 import pv.domain.board.entity.Deadline;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 public record DeadlineResponse(
         Long id,
         String name,
         LocalDate date,
-        Long assigneeId,
-        String assigneeName,
+        List<Assignee> assignees,
         boolean milestone,
         String description
 ) {
-    public static DeadlineResponse of(Deadline d, String assigneeName) {
+    public record Assignee(Long memberId, String name) {
+    }
+
+    public static DeadlineResponse of(Deadline d, Map<Long, String> names) {
+        List<Assignee> assignees = d.getAssigneeIds().stream()
+                .sorted()
+                .map(id -> new Assignee(id, names.get(id)))
+                .toList();
         return new DeadlineResponse(d.getId(), d.getName(), d.getDeadlineDate(),
-                d.getAssigneeId(), assigneeName, d.isMilestone(), d.getDescription());
+                assignees, d.isMilestone(), d.getDescription());
     }
 }

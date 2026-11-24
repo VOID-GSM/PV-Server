@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 public record MilestoneConfirmRequest(
         @NotEmpty @Size(max = 50) List<@Valid Item> milestones
@@ -15,7 +16,7 @@ public record MilestoneConfirmRequest(
     public record Item(
             @NotBlank @Size(max = 100) String name,
             @NotNull LocalDate date,
-            Long assigneeId
+            @Size(max = 20) Set<@NotNull Long> assigneeIds
     ) {
     }
 }
