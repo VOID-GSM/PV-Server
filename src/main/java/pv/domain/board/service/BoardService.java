@@ -20,6 +20,7 @@ import pv.domain.member.repository.MemberRepository;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -270,12 +271,17 @@ public class BoardService {
         Set<LocalDate> dates = slots.stream().map(Slot::date).collect(Collectors.toSet());
         Set<Long> targetIds = targets.stream().map(Deadline::getId).collect(Collectors.toSet());
 
+        Function<Deadline, List<Long>> overlapped = d -> d.getAssigneeIds().stream()
+            .filter(m -> slots.contains(new Slot(m, d.getDeadlineDate())))
+            .sorted()
+            .toList();
+
         List<Deadline> found = deadlineRepository.findAllByAnyAssigneeAndDateIn(memberIds, dates).stream()
-                .filter(d -> !targetIds.contains(d.getId()))
-                .filter(d -> excludeBoardId == null || !d.getBoardId().equals(excludeBoardId))
-                .filter(d -> d.getAssigneeIds().stream()
-                        .anyMatch(m -> slots.contains(new Slot(m, d.getDeadlineDate()))))
-                .toList();
+            .filter(d -> !targetIds.contains(d.getId()))
+            .filter(d -> excludeBoardId == null || !d.getBoardId().equals(excludeBoardId))
+            .filter(d -> !overlapped.apply(d).isEmpty())
+            .toList();
+
         if (found.isEmpty()) return List.of();
 
         Map<Long, Board> boards = new HashMap<>();
@@ -289,7 +295,8 @@ public class BoardService {
                 })
                 .sorted(Comparator.comparing(Deadline::getDeadlineDate).thenComparing(Deadline::getId))
                 .map(d -> new ConflictWarning(d.getId(), d.getBoardId(),
-                        boards.get(d.getBoardId()).getName(), d.getName(), d.getDeadlineDate()))
+                        boards.get(d.getBoardId()).getName(), d.getName(), d.getDeadlineDate(),
+                    overlapped.apply(d)))
                 .toList();
     }
 
