@@ -38,7 +38,7 @@ public record EventResponse(
         return new EventResponse(d.id(), EventType.DEADLINE, d.name(), d.description(),
                 d.date().atStartOfDay(),
                 d.date().atTime(LocalTime.of(23, 59, 59)),
-                true, d.boardId(), null, List.copyOf(d.assigneeIds()), null);
+                true, d.boardId(), null, d.assigneeIds().stream().sorted().toList(), null);
     }
 
     public static EventResponse from(CalendarSessionPort.SessionView s) {

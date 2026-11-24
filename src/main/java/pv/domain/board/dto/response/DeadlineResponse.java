@@ -19,6 +19,7 @@ public record DeadlineResponse(
 
     public static DeadlineResponse of(Deadline d, Map<Long, String> names) {
         List<Assignee> assignees = d.getAssigneeIds().stream()
+                .sorted()
                 .map(id -> new Assignee(id, names.get(id)))
                 .toList();
         return new DeadlineResponse(d.getId(), d.getName(), d.getDeadlineDate(),
