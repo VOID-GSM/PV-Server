@@ -18,6 +18,7 @@ import pv.domain.files.service.FileService;
 import pv.domain.member.entity.Major;
 import pv.domain.member.entity.Member;
 import pv.domain.member.entity.Role;
+import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
 import pv.domain.skills.entity.Skill;
 import pv.domain.skills.repository.SkillRepository;
@@ -42,6 +43,7 @@ public class AssignmentService {
     private final AssignmentRecipientRepository recipientRepository;
     private final SubmissionRepository submissionRepository;
     private final MemberRepository memberRepository;
+    private final GenerationRepository generationRepository;
     private final SkillRepository skillRepository;
     private final AttachmentValidator attachmentValidator;
     private final FileService fileService;
@@ -103,7 +105,10 @@ public class AssignmentService {
     public Long create(Long memberId, AssignmentCreateRequest req) {
         Member me = joinedMember(memberId);
 
-        if (!me.hasPermission(Role.SENIOR)) {
+        // 현재 활동 기수 (팀의 최신 기수). 새 기수가 추가되면 자동으로 바뀐다.
+        Integer currentGen = generationRepository.findCurrentNumberByTeamId(me.getTeamId()).orElse(null);
+
+        if (!canCreateAssignment(me, currentGen)) {
             throw new CustomException(
                     HttpStatus.FORBIDDEN,
                     "선배 기수 또는 부장만 과제를 출제할 수 있습니다."
@@ -183,8 +188,8 @@ public class AssignmentService {
         ));
 
         List<Long> recipientIds = switch (req.targetType()) {
-            case ALL -> memberRepository.findAssignmentBaseIds(me.getTeamId(), me.getId());
-            case MAJOR -> memberRepository.findAssignmentMajorIds(me.getTeamId(), me.getId(), majors);
+            case ALL -> memberRepository.findAssignmentBaseIds(me.getTeamId(), me.getId(), currentGen);
+            case MAJOR -> memberRepository.findAssignmentMajorIds(me.getTeamId(), me.getId(), majors, currentGen);
             case MEMBER -> memberIds.stream()
                     .filter(id -> !id.equals(me.getId()))
                     .toList();
@@ -336,6 +341,14 @@ public class AssignmentService {
         }
 
         return Set.copyOf(ids);
+    }
+
+    // 출제 권한: 부장, 기존 SENIOR 역할, 또는 현재 활동 기수보다 낮은 기수(선배)
+    private boolean canCreateAssignment(Member me, Integer currentGen) {
+        if (me.hasPermission(Role.SENIOR)) {
+            return true;
+        }
+        return currentGen != null && me.isSeniorOf(currentGen);
     }
 
     private Member joinedMember(Long memberId) {
