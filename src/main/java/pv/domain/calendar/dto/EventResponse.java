@@ -8,6 +8,7 @@ import pv.domain.calendar.port.CalendarSessionPort;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 import static pv.global.exception.TimeZones.KST;
 
@@ -21,7 +22,7 @@ public record EventResponse(
         boolean allDay,
         Long boardId,
         Long activityId,
-        Long assigneeId,
+        List<Long> assigneeIds,
         Boolean completed
 ) {
     private static final Duration DEFAULT_SESSION_DURATION = Duration.ofHours(1);
@@ -30,14 +31,14 @@ public record EventResponse(
         return new EventResponse(e.getId(), e.getType(), e.getTitle(), e.getMemo(),
                 LocalDateTime.ofInstant(e.getStartsAt(), KST),
                 LocalDateTime.ofInstant(e.getEndsAt(), KST),
-                e.isAllDay(), e.getBoardId(), e.getActivityId(), null, e.isCompleted());
+                e.isAllDay(), e.getBoardId(), e.getActivityId(), List.of(), e.isCompleted());
     }
 
     public static EventResponse from(CalendarDeadlinePort.DeadlineView d) {
         return new EventResponse(d.id(), EventType.DEADLINE, d.name(), d.description(),
                 d.date().atStartOfDay(),
                 d.date().atTime(LocalTime.of(23, 59, 59)),
-                true, d.boardId(), null, d.assigneeId(), null);
+                true, d.boardId(), null, List.copyOf(d.assigneeIds()), null);
     }
 
     public static EventResponse from(CalendarSessionPort.SessionView s) {
@@ -48,6 +49,6 @@ public record EventResponse(
                 ? s.date().atTime(LocalTime.of(23, 59, 59))
                 : startsAt.plus(DEFAULT_SESSION_DURATION);
         return new EventResponse(s.id(), EventType.ACTIVITY, title, s.topic(),
-                startsAt, endsAt, allDay, null, s.activityId(), null, null);
+                startsAt, endsAt, allDay, null, s.activityId(), List.of(), null);
     }
 }

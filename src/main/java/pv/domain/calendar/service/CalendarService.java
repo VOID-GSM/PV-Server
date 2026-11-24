@@ -24,6 +24,8 @@ import java.util.*;
 
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 import static pv.global.exception.TimeZones.KST;
 
 @Service
@@ -59,7 +61,7 @@ public class CalendarService {
                 .toList());
 
         deadlinePort.findDeadlines(boards, from, to).stream()
-                .filter(d -> !mine || memberId.equals(d.assigneeId()))
+                .filter(d -> !mine || d.assigneeIds().contains(memberId))
                 .map(EventResponse::from)
                 .forEach(events::add);
 
@@ -84,8 +86,9 @@ public class CalendarService {
         record Key(LocalDate weekStart, Long assigneeId) {}
 
         Map<Key, List<DeadlineView>> grouped = deadlinePort.findDeadlines(boards, weekFrom, weekTo).stream()
-                .filter(d -> d.assigneeId() != null)
-                .collect(groupingBy(d -> new Key(weekStartOf(d.date()), d.assigneeId())));
+                .flatMap(d -> d.assigneeIds().stream()
+                        .map(a -> Map.entry(new Key(weekStartOf(d.date()), a), d)))
+                .collect(groupingBy(Map.Entry::getKey, mapping(Map.Entry::getValue, toList())));
 
         return grouped.entrySet().stream()
                 .filter(en -> en.getValue().size() >= 2)
