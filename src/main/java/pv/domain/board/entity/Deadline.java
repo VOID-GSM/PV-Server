@@ -5,8 +5,13 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.BatchSize;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -23,10 +28,15 @@ public class Deadline {
 
     private LocalDate deadlineDate;
 
-    // 담당자 (Member ID, 없을 수 있음)
-    private Long assigneeId;
+    @ElementCollection
+    @CollectionTable(name = "deadline_assignees",
+            joinColumns = @JoinColumn(name = "deadline_id"),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"deadline_id", "member_id"}),
+            indexes = @Index(name = "idx_deadline_assignees_member", columnList = "member_id"))
+    @Column(name = "member_id", nullable = false)
+    @BatchSize(size = 100)
+    private Set<Long> assigneeIds = new LinkedHashSet<>();
 
-    // 마일스톤으로 확정된 마감인지
     private boolean milestone;
 
     @Column(columnDefinition = "text")
@@ -34,22 +44,24 @@ public class Deadline {
 
     private LocalDateTime createdAt;
 
-    public Deadline(Long boardId, String name, LocalDate deadlineDate, Long assigneeId,
+    public Deadline(Long boardId, String name, LocalDate deadlineDate, Collection<Long> assigneeIds,
                     String description, boolean milestone) {
         this.boardId = boardId;
         this.name = name;
         this.deadlineDate = deadlineDate;
-        this.assigneeId = assigneeId;
+        if (assigneeIds != null) this.assigneeIds.addAll(assigneeIds);
         this.description = blankToNull(description);
         this.milestone = milestone;
         this.createdAt = LocalDateTime.now();
     }
 
-    // null이 아닌 값만 수정
-    public void update(String name, LocalDate deadlineDate, Long assigneeId, String description) {
+    public void update(String name, LocalDate deadlineDate, Collection<Long> assigneeIds, String description) {
         if (name != null) this.name = name;
         if (deadlineDate != null) this.deadlineDate = deadlineDate;
-        if (assigneeId != null) this.assigneeId = assigneeId;
+        if (assigneeIds != null) {
+            this.assigneeIds.clear();
+            this.assigneeIds.addAll(assigneeIds);
+        }
         if (description != null) this.description = blankToNull(description);
     }
 
