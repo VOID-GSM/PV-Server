@@ -10,7 +10,9 @@ import pv.domain.notification.dto.request.NotificationSettingUpdateRequest;
 import pv.domain.notification.dto.response.NotificationListResponse;
 import pv.domain.notification.dto.response.NotificationSettingsResponse;
 import pv.domain.notification.service.NotificationService;
+import pv.domain.notification.dto.request.DiscordRoleUpdateRequest;
 import pv.domain.notification.dto.request.DiscordWebhookUpdateRequest;
+import pv.domain.notification.dto.response.DiscordRoleResponse;
 import pv.domain.notification.service.DiscordSettingService;
 import pv.domain.notification.dto.response.DiscordWebhookStatusResponse;
 
@@ -81,6 +83,22 @@ public class NotificationController {
             @AuthenticationPrincipal Long loginMemberId,
             @Valid @RequestBody DiscordWebhookUpdateRequest request) {
         discordSettingService.updateWebhook(loginMemberId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    // 디스코드 기수/전공 역할 ID 조회
+    @GetMapping("/discord/roles")
+    public ResponseEntity<DiscordRoleResponse> getDiscordRoles(
+            @AuthenticationPrincipal Long loginMemberId) {
+        return ResponseEntity.ok(discordSettingService.getRoles(loginMemberId));
+    }
+
+    // 디스코드 기수/전공 역할 ID 설정 (부장 전용, 전체 교체)
+    @PutMapping("/discord/roles")
+    public ResponseEntity<Void> updateDiscordRoles(
+            @AuthenticationPrincipal Long loginMemberId,
+            @Valid @RequestBody DiscordRoleUpdateRequest request) {
+        discordSettingService.updateRoles(loginMemberId, request);
         return ResponseEntity.noContent().build();
     }
 }
