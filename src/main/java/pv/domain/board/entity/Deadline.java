@@ -28,6 +28,7 @@ public class Deadline {
 
     private LocalDate deadlineDate;
 
+    // 담당자 (Member ID 목록, 비어 있을 수 있음)
     @ElementCollection
     @CollectionTable(name = "deadline_assignees",
             joinColumns = @JoinColumn(name = "deadline_id"),
@@ -37,6 +38,7 @@ public class Deadline {
     @BatchSize(size = 100)
     private Set<Long> assigneeIds = new LinkedHashSet<>();
 
+    // 마일스톤으로 확정된 마감인지
     private boolean milestone;
 
     @Column(columnDefinition = "text")
@@ -55,6 +57,7 @@ public class Deadline {
         this.createdAt = LocalDateTime.now();
     }
 
+    // null이 아닌 값만 수정. 담당자는 빈 목록이면 전부 해제된다.
     public void update(String name, LocalDate deadlineDate, Collection<Long> assigneeIds, String description) {
         if (name != null) this.name = name;
         if (deadlineDate != null) this.deadlineDate = deadlineDate;
