@@ -31,6 +31,13 @@ public class CalendarMembershipAdapter implements CalendarMembershipPort {
     }
 
     @Override
+    public boolean isLeader(Long memberId) {
+        return memberRepository.findById(memberId)
+                .map(m -> m.isLeader())
+                .orElse(false);
+    }
+
+    @Override
     public Set<Long> teamActivityIdsOf(Long memberId) {
         return memberRepository.findById(memberId)
                 .map(m -> new HashSet<>(activityRepository.findIdsByTeamId(m.getTeamId())))

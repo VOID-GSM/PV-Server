@@ -71,6 +71,18 @@ public class CalendarEvent {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    public static CalendarEvent meeting(Long boardId, Long creatorId, String title, String memo,
+                                        Instant startsAt, Instant endsAt, boolean allDay) {
+        CalendarEvent e = personal(creatorId, title, memo, startsAt, endsAt, allDay);
+        e.type = EventType.MEETING;
+        e.boardId = Objects.requireNonNull(boardId, "보드는 필수입니다.");
+        return e;
+    }
+
+    public boolean isMeeting() {
+        return type == EventType.MEETING;
+    }
+
     public static CalendarEvent personal(Long ownerId, String title, String memo,
                                          Instant startsAt, Instant endsAt, boolean allDay) {
         Objects.requireNonNull(startsAt, "시작 시각은 필수입니다.");
