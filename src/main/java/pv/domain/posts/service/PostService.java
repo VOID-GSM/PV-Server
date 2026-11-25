@@ -25,7 +25,10 @@ import pv.domain.posts.repository.PostRepository;
 import org.springframework.data.domain.Sort;
 import pv.domain.files.service.FileReferences;
 import pv.domain.files.service.FileService;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 import java.util.Set;
 import static pv.domain.posts.repository.PostSpecs.*;
@@ -58,7 +61,9 @@ public class PostService {
                 .and(authorId(resolveAuthor(cond.author(), currentMemberId)))
                 .and(createdFrom(cond.from()))
                 .and(createdTo(cond.to()));
-        return postRepository.findAll(spec, pageable).map(PostSummaryResponse::from);
+        Page<Post> posts = postRepository.findAll(spec, pageable);
+        Map<Long, String> names = memberNames(posts.getContent().stream().map(Post::getAuthorId).toList());
+        return posts.map(post -> PostSummaryResponse.from(post, names.get(post.getAuthorId())));
     }
 
     @Transactional
@@ -84,17 +89,21 @@ public class PostService {
                 req.content(),
                 LocalDateTime.now(clock)
         );
-        return PostResponse.from(postRepository.save(post));
+        return PostResponse.from(postRepository.save(post), member.getName());
     }
 
     public PostResponse getPost(Long postId, Long currentMemberId) {
         findJoinedMember(currentMemberId);
-        return PostResponse.from(findPost(postId));
+        Post post = findPost(postId);
+        String authorName = memberRepository.findById(post.getAuthorId())
+                .map(Member::getName)
+                .orElse(null);
+        return PostResponse.from(post, authorName);
     }
 
     @Transactional
     public PostResponse update(Long postId, PostUpdateRequest req, Long currentMemberId) {
-        findJoinedMember(currentMemberId);
+        Member member = findJoinedMember(currentMemberId);
         Post post = findPost(postId);
         if (!post.isWrittenBy(currentMemberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 글만 수정할 수 있습니다.");
@@ -111,7 +120,7 @@ public class PostService {
         fileService.deleteByIds(currentMemberId, removed);
         post.update(req.title(), req.content());
         postRepository.flush();
-        return PostResponse.from(post);
+        return PostResponse.from(post, member.getName());
     }
 
     @Transactional
@@ -130,14 +139,17 @@ public class PostService {
         List<Post> posts = sessionId != null
                 ? postRepository.findAllBySessionIdOrderByCreatedAtAsc(sessionId)
                 : postRepository.findAllByQuestionIdOrderByCreatedAtAsc(questionId);
-        return posts.stream().map(PostResponse::from).toList();
+        Map<Long, String> names = memberNames(posts.stream().map(Post::getAuthorId).toList());
+        return posts.stream()
+                .map(post -> PostResponse.from(post, names.get(post.getAuthorId())))
+                .toList();
     }
 
     private Post findPost(Long postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "정리글이 없습니다."));
     }
-    
+
     private void validateParticipant(Long activityId, Member member) {
         if (member.isLeader()) {
             return;
@@ -169,6 +181,13 @@ public class PostService {
             throw new CustomException(HttpStatus.BAD_REQUEST, "author는 'me' 또는 숫자 id 여야합니다.");
         }
 
+    }
+
+    private Map<Long, String> memberNames(Collection<Long> memberIds) {
+        Map<Long, String> names = new HashMap<>();
+        if (memberIds.isEmpty()) return names;
+        memberRepository.findAllById(new HashSet<>(memberIds)).forEach(m -> names.put(m.getId(), m.getName()));
+        return names;
     }
 
     private void validateSort(Sort sort) {
