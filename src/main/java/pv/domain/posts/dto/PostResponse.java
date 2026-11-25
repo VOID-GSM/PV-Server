@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record PostResponse(
         Long id,
         Long authorId,
+        String authorName,
         Long activityId,
         Long sessionId,
         Long questionId,
@@ -15,10 +16,11 @@ public record PostResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static PostResponse from(Post post) {
+    public static PostResponse from(Post post, String authorName) {
         return new PostResponse(
                 post.getId(),
                 post.getAuthorId(),
+                authorName,
                 post.getActivityId(),
                 post.getSessionId(),
                 post.getQuestionId(),

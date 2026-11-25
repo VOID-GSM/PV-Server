@@ -7,16 +7,18 @@ import java.time.LocalDateTime;
 public record PostSummaryResponse(
         Long id,
         Long authorId,
+        String authorName,
         Long activityId,
         Long sessionId,
         Long questionId,
         String title,
         LocalDateTime createdAt
 ) {
-    public static PostSummaryResponse from(Post post) {
+    public static PostSummaryResponse from(Post post, String authorName) {
         return new PostSummaryResponse(
                 post.getId(),
                 post.getAuthorId(),
+                authorName,
                 post.getActivityId(),
                 post.getSessionId(),
                 post.getQuestionId(),
