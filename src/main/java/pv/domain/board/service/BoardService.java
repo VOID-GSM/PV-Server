@@ -35,15 +35,16 @@ public class BoardService {
     private final DeadlineRepository deadlineRepository;
     private final RetrospectiveRepository retrospectiveRepository;
     private final MemberRepository memberRepository;
+    private final DeadlineAlertService deadlineAlertService;
 
     // ===== 보드 =====
 
     public List<BoardSummaryResponse> getBoards(Long loginMemberId) {
         Member leader = getLeader(loginMemberId);
         return boardRepository.findAllByTeamIdOrderByEndDateAsc(leader.getTeamId())
-                .stream()
-                .map(BoardSummaryResponse::from)
-                .toList();
+            .stream()
+            .map(BoardSummaryResponse::from)
+            .toList();
     }
 
     @Transactional
@@ -52,8 +53,8 @@ public class BoardService {
         validatePeriod(request.startDate(), request.endDate());
 
         Board board = boardRepository.save(new Board(
-                leader.getTeamId(), request.name(), request.type(), request.color(),
-                request.startDate(), request.endDate(), request.alertDays()));
+            leader.getTeamId(), request.name(), request.type(), request.color(),
+            request.startDate(), request.endDate(), request.alertDays()));
         return BoardSummaryResponse.from(board);
     }
 
@@ -65,8 +66,8 @@ public class BoardService {
         Set<Long> participantIds = assigneeIds(deadlines);
         Map<Long, String> names = memberNames(participantIds);
         List<BoardDetailResponse.ParticipantItem> participants = participantIds.stream()
-                .map(id -> new BoardDetailResponse.ParticipantItem(id, names.get(id)))
-                .toList();
+            .map(id -> new BoardDetailResponse.ParticipantItem(id, names.get(id)))
+            .toList();
 
         return new BoardDetailResponse(BoardSummaryResponse.from(board), participants, toResponses(deadlines, names));
     }
@@ -85,6 +86,7 @@ public class BoardService {
     public void deleteBoard(Long loginMemberId, Long boardId) {
         Board board = getBoardForUpdate(getLeader(loginMemberId), boardId);
         retrospectiveRepository.deleteAllByBoardId(boardId);
+        deadlineAlertService.deleteAlerts(deadlineRepository.findIdsByBoardId(boardId));
         deadlineRepository.deleteAllByBoardId(boardId);
         boardRepository.delete(board);
     }
@@ -99,8 +101,8 @@ public class BoardService {
 
         List<Deadline> deadlines = deadlineRepository.findAllByBoardIdOrderByDeadlineDateAscIdAsc(boardId);
         List<Retrospective> retrospectives = assigneeIds(deadlines).stream()
-                .map(memberId -> new Retrospective(boardId, memberId))
-                .toList();
+            .map(memberId -> new Retrospective(boardId, memberId))
+            .toList();
         retrospectiveRepository.saveAll(retrospectives);
     }
 
@@ -120,7 +122,8 @@ public class BoardService {
         validateAssignees(leader, request.assigneeIds());
 
         Deadline deadline = deadlineRepository.save(
-                new Deadline(boardId, request.name(), request.date(), request.assigneeIds(), request.description(), false));
+            new Deadline(boardId, request.name(), request.date(), request.assigneeIds(), request.description(), false));
+        deadlineAlertService.notifyAssigned(board, deadline, deadline.getAssigneeIds(), leader.getId());
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
@@ -135,7 +138,13 @@ public class BoardService {
         validateAssignees(leader, request.assigneeIds());
 
         Deadline deadline = findDeadline(deadlineId, boardId);
+        Set<Long> before = new HashSet<>(deadline.getAssigneeIds());
         deadline.update(request.name(), request.date(), request.assigneeIds(), request.description());
+
+        // 새로 추가된 담당자에게만 알림 (기존 담당자는 이미 받았음)
+        Set<Long> added = new LinkedHashSet<>(deadline.getAssigneeIds());
+        added.removeAll(before);
+        deadlineAlertService.notifyAssigned(board, deadline, added, leader.getId());
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
@@ -145,7 +154,9 @@ public class BoardService {
     public void deleteDeadline(Long loginMemberId, Long boardId, Long deadlineId) {
         Board board = getBoardForUpdate(getLeader(loginMemberId), boardId);
         validateActive(board);
-        deadlineRepository.delete(findDeadline(deadlineId, boardId));
+        Deadline deadline = findDeadline(deadlineId, boardId);
+        deadlineAlertService.deleteAlerts(List.of(deadline.getId()));
+        deadlineRepository.delete(deadline);
     }
 
     // ===== 마일스톤 =====
@@ -184,14 +195,15 @@ public class BoardService {
         Board board = getBoardForUpdate(leader, boardId);
         validateActive(board);
         validateAssignees(leader, request.milestones().stream()
-                .map(MilestoneConfirmRequest.Item::assigneeIds)
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .toList());
+            .map(MilestoneConfirmRequest.Item::assigneeIds)
+            .filter(Objects::nonNull)
+            .flatMap(Collection::stream)
+            .toList());
 
         List<Deadline> saved = deadlineRepository.saveAll(request.milestones().stream()
-                .map(m -> new Deadline(boardId, m.name(), m.date(), m.assigneeIds(), null, true))
-                .toList());
+            .map(m -> new Deadline(boardId, m.name(), m.date(), m.assigneeIds(), null, true))
+            .toList());
+        saved.forEach(d -> deadlineAlertService.notifyAssigned(board, d, d.getAssigneeIds(), leader.getId()));
 
         // 다른 보드 마감과 겹치는지 검사 (겹쳐도 저장은 유지, 경고로 반환)
         return new MilestoneConfirmResponse(toResponses(saved), findConflicts(saved, boardId));
@@ -201,7 +213,7 @@ public class BoardService {
 
     private Member getLeader(Long loginMemberId) {
         Member member = memberRepository.findById(loginMemberId)
-                .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 멤버입니다."));
+            .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 멤버입니다."));
         if (!member.isLeader()) {
             throw error(HttpStatus.FORBIDDEN, "부장만 사용할 수 있는 기능입니다.");
         }
@@ -211,20 +223,20 @@ public class BoardService {
     private Board getBoardOf(Long loginMemberId, Long boardId) {
         Member leader = getLeader(loginMemberId);
         return boardRepository.findById(boardId)
-                .filter(b -> b.getTeamId().equals(leader.getTeamId()))
-                .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 보드입니다."));
+            .filter(b -> b.getTeamId().equals(leader.getTeamId()))
+            .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 보드입니다."));
     }
 
     // 변경 작업용: 보드 행을 잠그고 조회 (다른 팀의 보드는 존재하지 않는 것처럼 404)
     private Board getBoardForUpdate(Member leader, Long boardId) {
         return boardRepository.findWithLockById(boardId)
-                .filter(b -> b.getTeamId().equals(leader.getTeamId()))
-                .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 보드입니다."));
+            .filter(b -> b.getTeamId().equals(leader.getTeamId()))
+            .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 보드입니다."));
     }
 
     private Deadline findDeadline(Long deadlineId, Long boardId) {
         return deadlineRepository.findByIdAndBoardId(deadlineId, boardId)
-                .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 마감입니다."));
+            .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 마감입니다."));
     }
 
     private void validateActive(Board board) {
@@ -246,8 +258,8 @@ public class BoardService {
         if (ids.isEmpty()) return;
 
         long valid = memberRepository.findAllById(ids).stream()
-                .filter(m -> leader.getTeamId().equals(m.getTeamId()) && m.getStatus() == MemberStatus.JOINED)
-                .count();
+            .filter(m -> leader.getTeamId().equals(m.getTeamId()) && m.getStatus() == MemberStatus.JOINED)
+            .count();
         if (valid != ids.size()) {
             throw error(HttpStatus.BAD_REQUEST, "존재하지 않는 담당자입니다.");
         }
@@ -286,24 +298,24 @@ public class BoardService {
 
         Map<Long, Board> boards = new HashMap<>();
         boardRepository.findAllById(found.stream().map(Deadline::getBoardId).collect(Collectors.toSet()))
-                .forEach(b -> boards.put(b.getId(), b));
+            .forEach(b -> boards.put(b.getId(), b));
 
         return found.stream()
-                .filter(d -> {
-                    Board b = boards.get(d.getBoardId());
-                    return b != null && !b.isClosed();
-                })
-                .sorted(Comparator.comparing(Deadline::getDeadlineDate).thenComparing(Deadline::getId))
-                .map(d -> new ConflictWarning(d.getId(), d.getBoardId(),
-                        boards.get(d.getBoardId()).getName(), d.getName(), d.getDeadlineDate(),
-                    overlapped.apply(d)))
-                .toList();
+            .filter(d -> {
+                Board b = boards.get(d.getBoardId());
+                return b != null && !b.isClosed();
+            })
+            .sorted(Comparator.comparing(Deadline::getDeadlineDate).thenComparing(Deadline::getId))
+            .map(d -> new ConflictWarning(d.getId(), d.getBoardId(),
+                boards.get(d.getBoardId()).getName(), d.getName(), d.getDeadlineDate(),
+                overlapped.apply(d)))
+            .toList();
     }
 
     private Set<Long> assigneeIds(List<Deadline> deadlines) {
         return deadlines.stream()
-                .flatMap(d -> d.getAssigneeIds().stream())
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+            .flatMap(d -> d.getAssigneeIds().stream())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     // Collectors.toMap은 value가 null이면 NPE가 나므로 직접 담는다 (이름이 null인 멤버 대비)
@@ -320,8 +332,8 @@ public class BoardService {
 
     private List<DeadlineResponse> toResponses(List<Deadline> deadlines, Map<Long, String> names) {
         return deadlines.stream()
-                .map(d -> DeadlineResponse.of(d, names))
-                .toList();
+            .map(d -> DeadlineResponse.of(d, names))
+            .toList();
     }
 
     private ResponseStatusException error(HttpStatus status, String message) {

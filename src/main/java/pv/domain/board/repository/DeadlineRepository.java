@@ -23,5 +23,10 @@ public interface DeadlineRepository extends JpaRepository<Deadline, Long> {
     List<Deadline> findAllByAnyAssigneeAndDateIn(@Param("memberIds") Collection<Long> memberIds,
                                                  @Param("dates") Collection<LocalDate> dates);
 
+    List<Deadline> findAllByBoardIdInAndDeadlineDateIn(Collection<Long> boardIds, Collection<LocalDate> dates);
+
+    @Query("select d.id from Deadline d where d.boardId = :boardId")
+    List<Long> findIdsByBoardId(@Param("boardId") Long boardId);
+
     void deleteAllByBoardId(Long boardId);
 }
