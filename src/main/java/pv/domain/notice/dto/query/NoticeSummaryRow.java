@@ -9,6 +9,7 @@ public record NoticeSummaryRow(
         Long id,
         String title,
         NoticeScope scope,
+        Long activityId,   // 활동 공지가 아니면 null
         Long authorId,
         String authorName,
         LocalDateTime createdAt,
