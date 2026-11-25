@@ -103,8 +103,7 @@ public class CalendarService {
 
     @Transactional
     public EventResponse update(Long memberId, Long eventId, EventUpdateRequest req) {
-        CalendarEvent event = findOwned(memberId, eventId);
-        event.update(req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
+        CalendarEvent event = findEditable(memberId, eventId);
         if (req.completed() != null) {
             if (event.isMeeting()) {
                 throw new CustomException(HttpStatus.BAD_REQUEST, "회의 일정은 완료 처리할 수 없습니다.");
