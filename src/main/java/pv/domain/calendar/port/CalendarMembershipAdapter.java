@@ -47,10 +47,7 @@ public class CalendarMembershipAdapter implements CalendarMembershipPort {
         if (teamId == null) return false;
 
         Set<Long> ids = new HashSet<>(memberIds);
-        long valid = memberRepository.findAllById(ids).stream()
-                .filter(m -> teamId.equals(m.getTeamId()) && m.getStatus() == MemberStatus.JOINED)
-                .count();
-        return valid == ids.size();
+        return memberRepository.countJoinedInTeam(teamId, ids) == ids.size();
     }
 
     @Override
