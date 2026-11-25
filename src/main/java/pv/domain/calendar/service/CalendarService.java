@@ -106,6 +106,9 @@ public class CalendarService {
         CalendarEvent event = findOwned(memberId, eventId);
         event.update(req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
         if (req.completed() != null) {
+            if (event.isMeeting()) {
+                throw new CustomException(HttpStatus.BAD_REQUEST, "회의 일정은 완료 처리할 수 없습니다.");
+            }
             event.changeCompletion(req.completed(), Instant.now(clock));
         }
         return EventResponse.from(event);
@@ -139,7 +142,7 @@ public class CalendarService {
 
     @Transactional
     public void delete(Long memberId, Long eventId) {
-        eventRepository.delete(findOwned(memberId, eventId));
+        eventRepository.delete(findEditable(memberId, eventId));
     }
 
     private CalendarEvent findEditable(Long memberId, Long eventId) {
