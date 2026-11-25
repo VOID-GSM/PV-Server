@@ -118,6 +118,16 @@ public class AssignmentController {
         return ResponseEntity.noContent().build();
     }
 
+    // 미제출 알림 (출제자 또는 부장). 본문 생략 시 디스코드 미전송
+    @PostMapping("/{assignmentId}/remind")
+    public AssignmentRemindResponse remind(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long assignmentId,
+            @RequestBody(required = false) AssignmentRemindRequest req
+    ) {
+        return assignmentService.remind(memberId, assignmentId, req != null && req.discordEnabled());
+    }
+
     @PostMapping("/{assignmentId}/submissions/{submissionId}/request-resubmission")
     public ResponseEntity<Void> requestResubmission(
             @AuthenticationPrincipal Long memberId,
