@@ -113,14 +113,39 @@ public class CalendarService {
 
     @Transactional
     public EventResponse create(Long memberId, EventCreateRequest req) {
-        CalendarEvent event = CalendarEvent.personal(
-                memberId, req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
+        EventType type = req.type() == null ? EventType.PERSONAL : req.type();
+        Instant startsAt = toInstant(req.startsAt());
+        Instant endsAt = toInstant(req.startsAt());
+
+        CalendarEvent event = switch (type) {
+            case PERSONAL -> {
+                if (req.boardId() != null) {
+                    throw new CustomException(HttpStatus.BAD_REQUEST, "개인 일정에는 보드를 지정할 수 없습니다.");
+                }
+                yield CalendarEvent.personal(memberId, req.title(), req.memo(), startsAt, endsAt, req.allDay());
+            }
+            case MEETING -> {
+                if (req.boardId() == null) {
+                    throw new CustomException(HttpStatus.BAD_REQUEST, "회의 일정은 보드가 필수입니다.");
+                }
+                requireBoardManager(memberId, req.boardId());
+                yield CalendarEvent.meeting(req.boardId(), memberId, req.title(), req.memo(),
+                        startsAt, endsAt, req.allDay());
+            }
+            default -> throw new CustomException(HttpStatus.BAD_REQUEST, "이 API로 만들 수 없는 일정 유형입니다.");
+        };
         return EventResponse.from(eventRepository.save(event));
     }
 
     @Transactional
     public void delete(Long memberId, Long eventId) {
         eventRepository.delete(findOwned(memberId, eventId));
+    }
+
+    private CalendarEvent findEditable(Long memberId, Long eventId) {
+        return eventRepository.findById(eventId)
+                .filter(e -> e.isPersonalOf(memberId) || (e.isMeeting() && canManageBoard(memberId, e.getBoardId())))
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."));
     }
 
     private CalendarEvent findOwned(Long memberId, Long eventId) {
@@ -158,5 +183,18 @@ public class CalendarService {
         Set<Long> r = new HashSet<>(a);
         r.retainAll(b);
         return r;
+    }
+
+    private void requireBoardManager(Long memberId, Long boardId) {
+        if (!membership.boardIdsOf(memberId).contains(boardId)) {
+            throw new CustomException(HttpStatus.NOT_FOUND, "존재하지 않는 보드입니다.");
+        }
+        if (!membership.isLeader(memberId)) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "보드 회의는 부장만 만들 수 있습니다.");
+        }
+    }
+
+    private boolean canManageBoard(Long memberId, Long boardId) {
+        return membership.isLeader(memberId) && membership.boardIdsOf(memberId).contains(boardId);
     }
 }
