@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import pv.domain.activity.repository.ActivityMemberRepository;
 import pv.domain.activity.repository.ActivityRepository;
 import pv.domain.board.repository.BoardRepository;
+import pv.domain.member.entity.Member;
 import pv.domain.member.repository.MemberRepository;
 
 import java.util.HashSet;
@@ -28,6 +29,13 @@ public class CalendarMembershipAdapter implements CalendarMembershipPort {
     @Override
     public Set<Long> activityIdsOf(Long memberId) {
         return new HashSet<>(activityMemberRepository.findActivityIdsByMemberId(memberId));
+    }
+
+    @Override
+    public boolean isLeader(Long memberId) {
+        return memberRepository.findById(memberId)
+                .map(Member::isLeader)
+                .orElse(false);
     }
 
     @Override

@@ -6,4 +6,5 @@ public interface CalendarMembershipPort {
     Set<Long> boardIdsOf(Long memberId);
     Set<Long> activityIdsOf(Long memberId);
     Set<Long> teamActivityIdsOf(Long memberId);
+    boolean isLeader(Long memberId);
 }

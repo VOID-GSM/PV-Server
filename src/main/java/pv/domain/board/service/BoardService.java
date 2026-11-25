@@ -9,6 +9,7 @@ import pv.domain.board.dto.request.*;
 import pv.domain.board.dto.response.*;
 import pv.domain.board.entity.Board;
 import pv.domain.board.entity.Deadline;
+import pv.domain.calendar.repository.CalendarEventRepository;
 import pv.domain.retrospectives.entity.Retrospective;
 import pv.domain.board.repository.BoardRepository;
 import pv.domain.board.repository.DeadlineRepository;
@@ -36,6 +37,7 @@ public class BoardService {
     private final RetrospectiveRepository retrospectiveRepository;
     private final MemberRepository memberRepository;
     private final DeadlineAlertService deadlineAlertService;
+    private final CalendarEventRepository calendarEventRepository;
 
     // ===== 보드 =====
 
@@ -88,6 +90,7 @@ public class BoardService {
         retrospectiveRepository.deleteAllByBoardId(boardId);
         deadlineAlertService.deleteAlerts(deadlineRepository.findIdsByBoardId(boardId));
         deadlineRepository.deleteAllByBoardId(boardId);
+        calendarEventRepository.deleteAllByBoardId(boardId);
         boardRepository.delete(board);
     }
 

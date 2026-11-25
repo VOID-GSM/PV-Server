@@ -3,6 +3,7 @@ package pv.domain.calendar.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import pv.domain.calendar.entity.EventType;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -12,5 +13,7 @@ public record EventCreateRequest(
         @Size(max = 2000) String memo,
         @NotNull LocalDateTime startsAt,
         @NotNull LocalDateTime endsAt,
-        boolean allDay
+        boolean allDay,
+        EventType type,
+        Long boardId
 ) {}
