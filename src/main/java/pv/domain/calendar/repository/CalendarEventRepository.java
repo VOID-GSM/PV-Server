@@ -1,6 +1,7 @@
 package pv.domain.calendar.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pv.domain.calendar.entity.CalendarEvent;
@@ -29,4 +30,8 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
                                      @Param("boardIds") Collection<Long> boardIds,
                                      @Param("activityIds") Collection<Long> activityIds,
                                      @Param("personal") EventType personal);
+
+    @Modifying(flushAutomatically = true)
+    @Query("delete from CalendarEvent e where e.boardId = :boardId")
+    void deleteAllByBoardId(@Param("boardId") Long boardId);
 }
