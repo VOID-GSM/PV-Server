@@ -66,6 +66,15 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("select m.name from Member m where m.id = :id")
     Optional<String> findNameById(Long id);
 
+    // 여러 명의 이름을 한 번에 조회 (roles/majors EAGER 컬렉션 로딩 없이 쿼리 1번)
+    @Query("select m.id as id, m.name as name from Member m where m.id in :ids")
+    List<IdName> findNamesByIds(@Param("ids") Collection<Long> ids);
+
+    interface IdName {
+        Long getId();
+        String getName();
+    }
+
     // 과제 대상자 계산 (ALL): 같은 팀, 가입 완료, 현재 활동 기수 이상, 출제자·선배·부장 제외
     // currentGen이 null이면(팀에 기수가 없으면) 기수 조건 없이 계산
     @Query("""
