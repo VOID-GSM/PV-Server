@@ -82,6 +82,14 @@ public class AuthService {
         inviteRepository.delete(invite);
     }
 
+    // 팀 초대 링크 목록 (부장). 최신순, 만료/소진된 링크도 상태와 함께 반환
+    public List<InviteListResponse> getInvites(Long loginMemberId, Long teamId) {
+        validateLeader(loginMemberId, teamId);
+        return inviteRepository.findAllByTeamIdOrderByIdDesc(teamId).stream()
+                .map(InviteListResponse::from)
+                .toList();
+    }
+
     // ===== 가입 =====
 
     @Transactional
@@ -117,6 +125,12 @@ public class AuthService {
                         m.getId(), m.getName(), m.getGeneration().getNumber(),
                         java.util.Set.copyOf(m.getMajors()), m.getCreatedAt()))
                 .toList();
+    }
+
+    // 승인 기능 여부 조회 (부장)
+    public TeamSettingsResponse getSettings(Long loginMemberId, Long teamId) {
+        validateLeader(loginMemberId, teamId);
+        return new TeamSettingsResponse(findTeam(teamId).isApprovalRequired());
     }
 
     @Transactional

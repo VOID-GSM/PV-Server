@@ -32,6 +32,14 @@ public class AuthController {
                 .body(authService.createInvite(loginMemberId, teamId, request));
     }
 
+    // 초대 링크 목록 (부장) - 최신순, 만료/소진 여부 포함
+    @GetMapping("/teams/{teamId}/invites")
+    public ResponseEntity<List<InviteListResponse>> getInvites(
+            @AuthenticationPrincipal Long loginMemberId,
+            @PathVariable Long teamId) {
+        return ResponseEntity.ok(authService.getInvites(loginMemberId, teamId));
+    }
+
     // 초대 링크 확인
     @GetMapping("/invites/{inviteCode}")
     public ResponseEntity<InviteGetResponse> getInvite(@PathVariable String inviteCode) {
@@ -70,6 +78,14 @@ public class AuthController {
             @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long teamId) {
         return ResponseEntity.ok(authService.getJoinRequests(loginMemberId, teamId));
+    }
+
+    // 승인 기능 여부 조회 (부장)
+    @GetMapping("/teams/{teamId}/settings")
+    public ResponseEntity<TeamSettingsResponse> getSettings(
+            @AuthenticationPrincipal Long loginMemberId,
+            @PathVariable Long teamId) {
+        return ResponseEntity.ok(authService.getSettings(loginMemberId, teamId));
     }
 
     // 승인 기능 여부 설정 (부장)
