@@ -24,6 +24,9 @@ public record ActivityCreateRequest(
         LocalTime repeatTime,
         @NotNull RecruitMode recruitMode,
         @NotNull TopicMode topicMode,
-        @Min(0) @Max(30) Integer topicOpenDaysBefore
+        @Min(0) @Max(30) Integer topicOpenDaysBefore,
+
+        // 알림 채널에서 '디스코드 웹훅'을 선택했는지 (값이 없으면 false)
+        boolean discordEnabled
 ) {
 }

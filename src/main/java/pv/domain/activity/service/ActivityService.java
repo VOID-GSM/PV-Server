@@ -3,6 +3,8 @@ package pv.domain.activity.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import pv.domain.notification.event.DiscordNoticeEvent;
+import pv.domain.notification.message.DiscordMessageFormatter;
+import pv.domain.notification.service.DiscordSettingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +60,7 @@ public class ActivityService {
     private final GenerationRepository generationRepository;
     private final AttendanceService attendanceService; // [출석]
     private final ApplicationEventPublisher eventPublisher;
+    private final DiscordSettingService discordSettingService;
 
     // ===== 활동 =====
 
@@ -196,21 +199,20 @@ public class ActivityService {
             );
         }
 
-        // 디스코드 알림 (대상 기수 태그는 테스트용으로 '@ 10' 형태)
-        String generationTags = generationIds.isEmpty()
-                ? ""
-                : generationRepository.findAllById(generationIds).stream()
-                        .map(Generation::getNumber)
-                        .sorted()
-                        .map(n -> "@ " + n)
-                        .collect(Collectors.joining(" ")) + "\n";
-
-        eventPublisher.publishEvent(
-                new DiscordNoticeEvent(
-                        activity.getTeamId(),
-                        generationTags + "새 활동이 생성되었어요\n>  " + activity.getName()
-                )
-        );
+        // 디스코드 알림: '디스코드 웹훅'을 선택한 경우에만 보낸다. 선택한 대상 기수/전공 역할을 멘션한다.
+        if (request.discordEnabled()) {
+            List<String> roleIds = discordSettingService.findRoleIds(activity.getTeamId(), generationIds, majors);
+            eventPublisher.publishEvent(
+                    new DiscordNoticeEvent(
+                            activity.getTeamId(),
+                            DiscordMessageFormatter.compose(
+                                    DiscordMessageFormatter.roleMentions(roleIds),
+                                    "새 활동이 생성되었어요",
+                                    DiscordMessageFormatter.quote(activity.getName())),
+                            false, Set.copyOf(roleIds), Set.of()
+                    )
+            );
+        }
 
         return ActivitySummaryResponse.of(activity, 1, true);
     }

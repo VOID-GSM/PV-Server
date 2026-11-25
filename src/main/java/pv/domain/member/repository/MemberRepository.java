@@ -13,6 +13,10 @@ import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
+    // 디스코드 멘션용. 사용자 ID가 등록된 멤버만 반환한다. (EAGER 컬렉션 조회 없이 한 번에)
+    @Query("select m.discordId from Member m where m.id in :ids and m.discordId is not null")
+    List<String> findDiscordIds(@Param("ids") Collection<Long> ids);
+
     List<Member> findAllByTeamIdAndStatusOrderByCreatedAtAsc(Long teamId, MemberStatus status);
 
     @Query("""

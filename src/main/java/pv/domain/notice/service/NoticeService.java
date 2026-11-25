@@ -2,12 +2,13 @@ package pv.domain.notice.service;
 
 import org.springframework.context.ApplicationEventPublisher;
 import pv.domain.notification.event.DiscordNoticeEvent;
+import pv.domain.notification.message.DiscordMessageFormatter;
+import pv.domain.notification.service.DiscordSettingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pv.domain.activity.entity.Activity;
 import pv.domain.activity.entity.ActivityRole;
 import pv.domain.activity.repository.ActivityMemberRepository;
 import pv.domain.activity.repository.ActivityRepository;
@@ -37,9 +38,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -54,14 +53,6 @@ public class NoticeService {
     // IN 절 바인딩 파라미터가 한 쿼리에 너무 많아지지 않게 나눠서 넣는다.
     private static final int INSERT_CHUNK_SIZE = 1000;
 
-    // 디스코드 전공 태그 (테스트용 텍스트 태그)
-    private static final Map<Major, String> MAJOR_TAGS = Map.of(
-            Major.FRONTEND, "@FE",
-            Major.BACKEND, "@BE",
-            Major.DEVOPS, "@DevOps",
-            Major.DESIGN, "@Design"
-    );
-
 
     private final Clock clock;
     private final NoticeRepository noticeRepository;
@@ -73,6 +64,7 @@ public class NoticeService {
     private final GenerationRepository generationRepository;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DiscordSettingService discordSettingService;
     private final FileService fileService;
 
     // ===== 목록 / 상세 =====
@@ -160,7 +152,7 @@ public class NoticeService {
 
         notificationService.send(
                 NotificationType.NOTICE, "[공지] " + notice.getTitle(), notice.getId(), recipientIds);
-        if (Boolean.TRUE.equals(request.discordEnabled())) {
+        if (request.discordEnabled()) {
             notice.enableDiscord();
             sendDiscord(notice, recipientIds, false);
         }
@@ -386,67 +378,50 @@ public class NoticeService {
     // ===== 디스코드 =====
 
     // '디스코드 웹훅'을 선택한 공지만 보낸다. 보드 범위는 보내지 않는다.
-    // - 팀 전체: @everyone / 기수·전공: 기수와 전공 태그 / 활동: 대상 참여자 태그
-    // - 활동 공지 재알림만 '활동에 참여해주세요 > 활동명', 나머지는 '제목 > 내용'
+    // 디스코드 채널은 팀 전체가 볼 수 있으므로 본문은 팀 전체 공지만 보내고, 나머지는 제목만 보낸다.
+    // - 팀 전체: @everyone / 제목 / > 본문(파일 참조는 [첨부파일])
+    // - 기수·전공: 기수/전공 역할 멘션 / 제목
+    // - 활동: 대상 참여자 멘션 (재알림은 안 읽은 사람만) / 제목
+    // 재알림은 제목 앞에 [재알림]을 붙인다.
     private void sendDiscord(Notice notice, List<Long> memberIds, boolean remind) {
         if (!notice.isDiscordEnabled() || notice.getScope() == NoticeScope.BOARD) {
             return;
         }
 
-        String tags = switch (notice.getScope()) {
-            case ALL -> "@everyone";
-            case TARGET -> targetTags(notice);
-            case ACTIVITY -> memberTags(memberIds);
-            case BOARD -> "";
+        String headline = remind ? "[재알림] " + notice.getTitle() : notice.getTitle();
+
+        DiscordNoticeEvent event = switch (notice.getScope()) {
+            case ALL -> new DiscordNoticeEvent(
+                    notice.getTeamId(),
+                    DiscordMessageFormatter.compose(
+                            DiscordMessageFormatter.EVERYONE,
+                            headline,
+                            DiscordMessageFormatter.quote(
+                                    DiscordMessageFormatter.replaceFileReferences(notice.getContent()))),
+                    true, Set.of(), Set.of());
+            case TARGET -> {
+                List<String> roleIds = discordSettingService.findRoleIds(
+                        notice.getTeamId(), notice.getTargetGenerationIds(), notice.getTargetMajors());
+                yield new DiscordNoticeEvent(
+                        notice.getTeamId(),
+                        DiscordMessageFormatter.compose(
+                                DiscordMessageFormatter.roleMentions(roleIds), headline, ""),
+                        false, Set.copyOf(roleIds), Set.of());
+            }
+            case ACTIVITY -> {
+                List<String> userIds = memberIds.isEmpty()
+                        ? List.of()
+                        : memberRepository.findDiscordIds(memberIds);
+                yield new DiscordNoticeEvent(
+                        notice.getTeamId(),
+                        DiscordMessageFormatter.compose(
+                                DiscordMessageFormatter.userMentions(userIds), headline, ""),
+                        false, Set.of(), Set.copyOf(userIds));
+            }
+            case BOARD -> throw new IllegalStateException("보드 공지는 디스코드로 보내지 않습니다.");
         };
 
-        String headline;
-        String body;
-        if (remind && notice.getScope() == NoticeScope.ACTIVITY) {
-            headline = "활동에 참여해주세요";
-            body = activityRepository.findById(notice.getActivityId())
-                    .map(Activity::getName)
-                    .orElse("");
-        } else {
-            headline = notice.getTitle();
-            body = notice.getContent();
-        }
-
-        String message = (tags.isBlank() ? "" : tags + "\n") + headline + "\n" + quote(body);
-        eventPublisher.publishEvent(new DiscordNoticeEvent(notice.getTeamId(), message));
-    }
-
-    // 기수는 '@ 10' (테스트용 띄어쓰기), 전공은 '@BE' 형태
-    private String targetTags(Notice notice) {
-        String generations = generationRepository.findAllById(notice.getTargetGenerationIds()).stream()
-                .map(Generation::getNumber)
-                .sorted()
-                .map(n -> "@ " + n)
-                .collect(Collectors.joining(" "));
-        String majors = notice.getTargetMajors().stream()
-                .sorted()
-                .map(MAJOR_TAGS::get)
-                .collect(Collectors.joining(" "));
-        return (generations + " " + majors).trim();
-    }
-
-    // 디스코드 아이디가 등록된 멤버만 태그한다.
-    private String memberTags(List<Long> memberIds) {
-        if (memberIds.isEmpty()) {
-            return "";
-        }
-        return memberRepository.findAllById(memberIds).stream()
-                .map(Member::getDiscordId)
-                .filter(id -> id != null && !id.isBlank())
-                .map(id -> "@" + id)
-                .collect(Collectors.joining(" "));
-    }
-
-    // 여러 줄도 모두 인용으로 보이게 줄마다 '> '를 붙인다.
-    private static String quote(String text) {
-        return text.lines()
-                .map(line -> "> " + line)
-                .collect(Collectors.joining("\n"));
+        eventPublisher.publishEvent(event);
     }
 
     private static <T> T requireNotNull(T value, String message) {

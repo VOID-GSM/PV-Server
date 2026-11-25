@@ -19,6 +19,7 @@ public class DiscordNoticeListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void on(DiscordNoticeEvent event) {
         discordSettingService.findWebhookUrl(event.teamId())
-                .ifPresent(url -> client.send(url, event.message()));
+                .ifPresent(url -> client.send(
+                        url, event.message(), event.mentionEveryone(), event.roleIds(), event.userIds()));
     }
 }
