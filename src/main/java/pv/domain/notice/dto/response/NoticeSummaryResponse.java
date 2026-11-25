@@ -9,6 +9,7 @@ public record NoticeSummaryResponse(
         Long id,
         String title,
         NoticeScope scope,
+        Long activityId,   // 활동 공지가 아니면 null
         Long authorId,
         String authorName,
         LocalDateTime createdAt,
@@ -16,7 +17,7 @@ public record NoticeSummaryResponse(
 ) {
     public static NoticeSummaryResponse from(NoticeSummaryRow row) {
         return new NoticeSummaryResponse(
-                row.id(), row.title(), row.scope(), row.authorId(), row.authorName(),
+                row.id(), row.title(), row.scope(), row.activityId(), row.authorId(), row.authorName(),
                 row.createdAt(), row.readAt() != null);
     }
 }
