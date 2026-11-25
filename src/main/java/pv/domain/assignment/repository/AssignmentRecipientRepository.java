@@ -23,6 +23,18 @@ public interface AssignmentRecipientRepository extends JpaRepository<AssignmentR
             """)
     List<TargetMemberRow> findTargets(@Param("assignmentId") Long assignmentId);
 
+    // 미제출자: 대상자 중 제출 기록이 없는 가입 완료 팀원
+    @Query("""
+            select r.memberId from AssignmentRecipient r, Member m
+            where r.assignmentId = :assignmentId
+              and m.id = r.memberId
+              and m.status = pv.domain.member.entity.MemberStatus.JOINED
+              and not exists (select 1 from Submission s
+                              where s.assignment.id = r.assignmentId
+                                and s.submitter.id = r.memberId)
+            """)
+    List<Long> findUnsubmittedMemberIds(@Param("assignmentId") Long assignmentId);
+
     @Modifying(flushAutomatically = true)
     @Query(value = """
             insert into assignment_recipients (assignment_id, member_id)
