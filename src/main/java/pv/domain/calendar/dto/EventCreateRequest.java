@@ -7,6 +7,7 @@ import pv.domain.calendar.entity.EventType;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 public record EventCreateRequest(
         @NotBlank @Size(max = 100) String title,
@@ -15,5 +16,6 @@ public record EventCreateRequest(
         @NotNull LocalDateTime endsAt,
         boolean allDay,
         EventType type,
-        Long boardId
-) {}
+        Long boardId,
+        @Size(max = 20)Set<@NotNull Long> assigneeIds
+        ) {}
