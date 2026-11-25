@@ -115,7 +115,7 @@ public class CalendarService {
     public EventResponse create(Long memberId, EventCreateRequest req) {
         EventType type = req.type() == null ? EventType.PERSONAL : req.type();
         Instant startsAt = toInstant(req.startsAt());
-        Instant endsAt = toInstant(req.startsAt());
+        Instant endsAt = toInstant(req.endsAt());
 
         CalendarEvent event = switch (type) {
             case PERSONAL -> {
