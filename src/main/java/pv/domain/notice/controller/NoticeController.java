@@ -23,13 +23,15 @@ public class NoticeController {
     private final NoticeService noticeService;
 
     // 내가 대상인 공지 (읽음 여부 포함). 최신순, 커서 기반
+    // activityId가 있으면 그 활동의 공지만 조회
     @GetMapping
     public ResponseEntity<NoticeListResponse> getNotices(
             @AuthenticationPrincipal Long loginMemberId,
             @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) Long activityId,
             @RequestParam(defaultValue = "20")
             @Min(1) @Max(50) int size) {
-        return ResponseEntity.ok(noticeService.getNotices(loginMemberId, cursor, size));
+        return ResponseEntity.ok(noticeService.getNotices(loginMemberId, cursor, size, activityId));
     }
 
     @PostMapping
