@@ -70,13 +70,13 @@ public class NoticeService {
     // ===== 목록 / 상세 =====
 
     // 내가 대상인 공지만 최신순으로 조회한다. (수신자 row가 있는 사람만 결과가 나오므로 별도 멤버 조회가 필요 없다)
-    public NoticeListResponse getNotices(Long loginMemberId, Long cursor, int size) {
+    public NoticeListResponse getNotices(Long loginMemberId, Long cursor, int size, Long activityId) {
         int limit = Math.min(Math.max(size, 1), MAX_SIZE);
         long from = cursor == null ? Long.MAX_VALUE : cursor;
 
         // 한 건 더 조회해서 다음 페이지가 있는지 판단한다.
         List<NoticeSummaryRow> rows = recipientRepository
-                .findSummaries(loginMemberId, from, PageRequest.of(0, limit + 1));
+                .findSummaries(loginMemberId, from, activityId, PageRequest.of(0, limit + 1));
 
         boolean hasNext = rows.size() > limit;
         List<NoticeSummaryRow> page = hasNext ? rows.subList(0, limit) : rows;
