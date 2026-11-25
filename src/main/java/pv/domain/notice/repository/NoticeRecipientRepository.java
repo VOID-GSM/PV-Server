@@ -20,20 +20,22 @@ public interface NoticeRecipientRepository extends JpaRepository<NoticeRecipient
 
     boolean existsByNoticeIdAndMemberId(Long noticeId, Long memberId);
 
-    // 내가 받은 공지 + 내가 작성한 공지 최신순 (커서 기반)
+    // 내가 받은 공지 + 내가 작성한 공지 최신순 (커서 기반). activityId가 있으면 그 활동 공지만
     @Query("""
     select new pv.domain.notice.dto.query.NoticeSummaryRow(
-        n.id, n.title, n.scope, n.authorId, a.name, n.createdAt, r.readAt)
+        n.id, n.title, n.scope, n.activityId, n.authorId, a.name, n.createdAt, r.readAt)
     from Notice n
     left join Member a on a.id = n.authorId
     left join NoticeRecipient r on r.noticeId = n.id and r.memberId = :memberId
     where n.id < :cursor
       and (r.memberId = :memberId or n.authorId = :memberId)
+      and (:activityId is null or n.activityId = :activityId)
     order by n.id desc
     """)
     List<NoticeSummaryRow> findSummaries(
             @Param("memberId") Long memberId,
             @Param("cursor") Long cursor,
+            @Param("activityId") Long activityId,
             Pageable pageable
     );
 
