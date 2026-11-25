@@ -9,6 +9,7 @@ import pv.domain.files.dto.FileDownloadResponse;
 import pv.domain.member.dto.request.MemberUpdateRequest;
 import pv.domain.member.dto.request.MyProfileUpdateRequest;
 import pv.domain.member.dto.request.RoleGrantRequest;
+import pv.domain.member.dto.response.GenerationResponse;
 import pv.domain.member.dto.response.MemberGetResponse;
 import pv.domain.member.dto.response.MemberProfileImageResponse;
 import pv.domain.member.dto.response.RoleGetResponse;
@@ -164,6 +165,19 @@ public class MemberService {
         }
         member.changeProfileImage(null);
         fileService.deleteByIds(loginMemberId, List.of(oldFileId));
+    }
+
+    // ===== 기수 목록 (같은 팀 멤버) =====
+
+    // 활동 대상 기수 선택, 디스코드 역할 설정 등에서 기수 id와 번호가 필요할 때 사용
+    public List<GenerationResponse> getGenerations(Long loginMemberId) {
+        Member me = findMember(loginMemberId);
+        if (!me.isJoined()) {
+            throw error(HttpStatus.FORBIDDEN, "가입이 완료된 팀원만 사용할 수 있습니다.");
+        }
+        return generationRepository.findAllByTeamIdOrderByNumberAsc(me.getTeamId()).stream()
+                .map(GenerationResponse::from)
+                .toList();
     }
 
     // ===== 프로필 사진 일괄 조회 (같은 팀 멤버) =====
