@@ -10,5 +10,6 @@ public enum NotificationType {
     WEEKLY_REPORT,       // 주간 리포트
     WORKLOG_COMMENT,       //업무일지 댓글
     SUBMISSION_COMMENT,      //제출물 댓글
-    NOTE_COMMENT          // 정리글 댓글
+    NOTE_COMMENT,         // 정리글 댓글
+    ASSIGNMENT_REMINDER   // 과제 미제출 알림
 }

@@ -11,6 +11,7 @@ import pv.domain.assignment.dto.request.*;
 import pv.domain.assignment.dto.response.*;
 import pv.domain.assignment.entity.Assignment;
 import pv.domain.assignment.entity.Submission;
+import org.springframework.context.ApplicationEventPublisher;
 import pv.domain.assignment.repository.AssignmentRecipientRepository;
 import pv.domain.assignment.repository.AssignmentRepository;
 import pv.domain.assignment.repository.SubmissionRepository;
@@ -20,11 +21,16 @@ import pv.domain.member.entity.Member;
 import pv.domain.member.entity.Role;
 import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
+import pv.domain.notification.entity.NotificationType;
+import pv.domain.notification.event.DiscordNoticeEvent;
+import pv.domain.notification.message.DiscordMessageFormatter;
+import pv.domain.notification.service.NotificationService;
 import pv.domain.skills.entity.Skill;
 import pv.domain.skills.repository.SkillRepository;
 import pv.global.exception.CustomException;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -48,6 +54,11 @@ public class AssignmentService {
     private final AttachmentValidator attachmentValidator;
     private final FileService fileService;
     private final Clock clock;
+    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
+
+    // 같은 과제에 대한 미제출 알림 최소 간격 (알림 연타 방지)
+    private static final Duration REMIND_INTERVAL = Duration.ofHours(1);
 
     // 1. 목록
     public PageResponse<AssignmentSummaryResponse> list(
@@ -318,13 +329,75 @@ public class AssignmentService {
             }
         }
 
-        // DB에서 제출물과 과제 삭제
+        // DB에서 제출물과 과제 삭제 (미제출 알림도 함께 정리)
+        notificationService.deleteByTarget(NotificationType.ASSIGNMENT_REMINDER, assignmentId);
         recipientRepository.deleteAllByAssignmentId(assignmentId);
         submissionRepository.deleteAllByAssignmentId(assignmentId);
         assignmentRepository.delete(a);
 
         // FileService가 DB 레코드와 S3 객체 정리를 처리
         fileService.deleteByKeys(fileKeys);
+    }
+
+    // 6. 미제출 알림: 출제자 또는 부장. 대상자 중 아직 제출하지 않은 사람에게만 보낸다.
+    // 과제 행을 잠가서 동시에 여러 번 눌러도 간격 제한이 정확히 적용된다.
+    @Transactional
+    public AssignmentRemindResponse remind(Long memberId, Long assignmentId, boolean discordEnabled) {
+        Member me = joinedMember(memberId);
+
+        Assignment a = assignmentRepository.findByIdForUpdate(assignmentId)
+                .filter(x -> x.getTeamId().equals(me.getTeamId()))
+                .orElseThrow(() -> new CustomException(
+                        HttpStatus.NOT_FOUND,
+                        "과제를 찾을 수 없습니다."
+                ));
+
+        if (!(a.isAuthor(me.getId()) || me.isLeader())) {
+            throw new CustomException(
+                    HttpStatus.FORBIDDEN,
+                    "출제자 또는 부장만 미제출 알림을 보낼 수 있습니다."
+            );
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        Duration remaining = a.remainingRemindCooldown(now, REMIND_INTERVAL);
+        if (!remaining.isZero()) {
+            long minutes = remaining.toMinutes() + 1;
+            throw new CustomException(
+                    HttpStatus.TOO_MANY_REQUESTS,
+                    "미제출 알림은 1시간에 한 번만 보낼 수 있습니다. 약 " + minutes + "분 후에 다시 시도해주세요."
+            );
+        }
+
+        List<Long> unsubmittedIds = recipientRepository.findUnsubmittedMemberIds(assignmentId);
+        if (unsubmittedIds.isEmpty()) {
+            return new AssignmentRemindResponse(0);
+        }
+
+        a.markReminded(now);
+        int reminded = notificationService.send(
+                NotificationType.ASSIGNMENT_REMINDER,
+                "[과제 미제출] " + a.getTitle(),
+                assignmentId,
+                unsubmittedIds
+        );
+
+        // 디스코드: 선택한 경우에만, 디스코드 ID가 등록된 미제출자가 있을 때만 멘션해서 보낸다.
+        if (discordEnabled) {
+            List<String> discordIds = memberRepository.findDiscordIds(unsubmittedIds);
+            if (!discordIds.isEmpty()) {
+                eventPublisher.publishEvent(new DiscordNoticeEvent(
+                        a.getTeamId(),
+                        DiscordMessageFormatter.compose(
+                                DiscordMessageFormatter.userMentions(discordIds),
+                                a.getTitle() + " 과제를 완료해주세요",
+                                ""),
+                        false, Set.of(), Set.copyOf(discordIds)
+                ));
+            }
+        }
+
+        return new AssignmentRemindResponse(reminded);
     }
 
     // 존재하고 활성인 스킬만 허용

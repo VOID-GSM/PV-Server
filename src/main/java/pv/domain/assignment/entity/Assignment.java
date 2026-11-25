@@ -9,6 +9,7 @@ import org.hibernate.type.SqlTypes;
 import pv.domain.member.entity.Major;
 import pv.domain.member.entity.Member;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -74,6 +75,9 @@ public class Assignment {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    // 마지막 미제출 알림 시각 (알림 간격 제한용)
+    private LocalDateTime lastRemindedAt;
+
     public Assignment(Long teamId, Member author, String title, String description, LocalDateTime deadline,
                       AssignmentTargetType targetType, Set<Major> majors, Set<Long> memberIds,
                       List<String> fileKeys, Set<Long> skillIds, LocalDateTime createdAt) {
@@ -92,6 +96,19 @@ public class Assignment {
 
     public boolean isAuthor(Long memberId) {
         return author.getId().equals(memberId);
+    }
+
+    // 아직 미제출 알림을 보낼 수 없으면 남은 시간을, 보낼 수 있으면 Duration.ZERO를 반환
+    public Duration remainingRemindCooldown(LocalDateTime now, Duration interval) {
+        if (lastRemindedAt == null) {
+            return Duration.ZERO;
+        }
+        Duration remaining = interval.minus(Duration.between(lastRemindedAt, now));
+        return remaining.isNegative() ? Duration.ZERO : remaining;
+    }
+
+    public void markReminded(LocalDateTime now) {
+        this.lastRemindedAt = now;
     }
 
     public boolean isPastDeadline(LocalDateTime now) {
