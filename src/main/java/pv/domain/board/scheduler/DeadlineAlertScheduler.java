@@ -13,9 +13,11 @@ public class DeadlineAlertScheduler {
 
     private final DeadlineAlertService deadlineAlertService;
 
-    @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 9-21 * * *", zone = "Asia/Seoul")
     public void sendDailyAlerts() {
         int sent = deadlineAlertService.sendDailyAlerts();
-        log.info("마감 D-day 알림 발송: {}건", sent);
+        if (sent > 0) {
+            log.info("마감 D-day 알림 발송: {}건", sent);
+        }
     }
 }
