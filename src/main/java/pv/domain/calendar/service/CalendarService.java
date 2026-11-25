@@ -57,6 +57,7 @@ public class CalendarService {
                         memberId, startOf(from), startOf(to.plusDays(1)),
                         orNone(boards), orNone(activities), EventType.PERSONAL)
                 .stream()
+                .filter(e -> !mine || !e.isMeeting() || e.getAssigneeIds().contains(memberId))   // ← 추가
                 .map(EventResponse::from)
                 .toList());
 
