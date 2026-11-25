@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pv.domain.auth.entity.Invite;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface InviteRepository extends JpaRepository<Invite, Long> {
@@ -21,4 +22,7 @@ public interface InviteRepository extends JpaRepository<Invite, Long> {
 
     // 초대 링크 삭제 시 팀 소속 검증용: DELETE /teams/{teamId}/invites/{inviteId}
     Optional<Invite> findByIdAndTeamId(Long id, Long teamId);
+
+    // 팀 초대 링크 목록 (최신순): GET /teams/{teamId}/invites
+    List<Invite> findAllByTeamIdOrderByIdDesc(Long teamId);
 }
