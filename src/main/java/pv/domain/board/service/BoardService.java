@@ -86,6 +86,7 @@ public class BoardService {
     public void deleteBoard(Long loginMemberId, Long boardId) {
         Board board = getBoardForUpdate(getLeader(loginMemberId), boardId);
         retrospectiveRepository.deleteAllByBoardId(boardId);
+        deadlineAlertService.deleteAlerts(deadlineRepository.findIdsByBoardId(boardId));
         deadlineRepository.deleteAllByBoardId(boardId);
         boardRepository.delete(board);
     }
@@ -122,7 +123,7 @@ public class BoardService {
 
         Deadline deadline = deadlineRepository.save(
             new Deadline(boardId, request.name(), request.date(), request.assigneeIds(), request.description(), false));
-        deadlineAlertService.notifyAssigned(board, deadline, deadline.getAssigneeIds());
+        deadlineAlertService.notifyAssigned(board, deadline, deadline.getAssigneeIds(), leader.getId());
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
@@ -143,7 +144,7 @@ public class BoardService {
         // 새로 추가된 담당자에게만 알림 (기존 담당자는 이미 받았음)
         Set<Long> added = new LinkedHashSet<>(deadline.getAssigneeIds());
         added.removeAll(before);
-        deadlineAlertService.notifyAssigned(board, deadline, added);
+        deadlineAlertService.notifyAssigned(board, deadline, added, leader.getId());
 
         List<ConflictWarning> warnings = findConflicts(List.of(deadline), null);
         return new DeadlineSaveResponse(toResponses(List.of(deadline)).get(0), warnings);
@@ -153,7 +154,9 @@ public class BoardService {
     public void deleteDeadline(Long loginMemberId, Long boardId, Long deadlineId) {
         Board board = getBoardForUpdate(getLeader(loginMemberId), boardId);
         validateActive(board);
-        deadlineRepository.delete(findDeadline(deadlineId, boardId));
+        Deadline deadline = findDeadline(deadlineId, boardId);
+        deadlineAlertService.deleteAlerts(List.of(deadline.getId()));
+        deadlineRepository.delete(deadline);
     }
 
     // ===== 마일스톤 =====
@@ -200,7 +203,7 @@ public class BoardService {
         List<Deadline> saved = deadlineRepository.saveAll(request.milestones().stream()
             .map(m -> new Deadline(boardId, m.name(), m.date(), m.assigneeIds(), null, true))
             .toList());
-        saved.forEach(d -> deadlineAlertService.notifyAssigned(board, d, d.getAssigneeIds()));
+        saved.forEach(d -> deadlineAlertService.notifyAssigned(board, d, d.getAssigneeIds(), leader.getId()));
 
         // 다른 보드 마감과 겹치는지 검사 (겹쳐도 저장은 유지, 경고로 반환)
         return new MilestoneConfirmResponse(toResponses(saved), findConflicts(saved, boardId));
