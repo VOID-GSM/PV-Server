@@ -14,6 +14,7 @@ import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
+    // 커서(id) 기반 최신순 조회. offset/count 쿼리가 없다.
     List<Notification> findByMemberIdAndIdLessThanOrderByIdDesc(Long memberId, Long cursor, Pageable pageable);
 
     boolean existsByIdAndMemberId(Long id, Long memberId);
@@ -46,6 +47,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     void deleteByTargets(@Param("types") Collection<NotificationType> types,
                          @Param("targetIds") Collection<Long> targetIds);
 
+    // 대상자 전원의 알림을 한 번의 쿼리로 만든다. (IDENTITY라 saveAll은 건건이 insert된다)
+    // 해당 종류를 끈 사람(notification_setting.enabled = false)은 제외한다. 반환값은 실제로 만들어진 알림 수.
     @Modifying(flushAutomatically = true)
     @Query(value = """
             insert into notification (member_id, notification_type, title, target_id, created_at)

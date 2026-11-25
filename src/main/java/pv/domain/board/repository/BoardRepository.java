@@ -17,6 +17,7 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
 
     List<Board> findAllByStatus(BoardStatus status);
 
+    // 보드 종료/마감 변경/삭제가 동시에 일어나도 순서대로 처리되도록 행 잠금
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Board> findWithLockById(Long id);
 
