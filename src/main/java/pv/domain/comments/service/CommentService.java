@@ -18,6 +18,10 @@ import pv.domain.member.entity.MemberStatus;
 import pv.domain.member.repository.MemberRepository;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.HashSet;
 import pv.domain.notification.entity.NotificationType;
 import pv.domain.notification.service.NotificationService;
@@ -42,8 +46,21 @@ public class CommentService {
     @Transactional(readOnly = true)
     public List<CommentDto.Response> getComments(Long memberId, TargetType type, Long targetId) {
         Member me = getJoinedMember(memberId);
-        return commentRepository.findByTeamIdAndTargetTypeAndTargetIdOrderByCreatedAtAsc(me.getTeamId(), type, targetId)
-                .stream().map(CommentDto.Response::from).toList();
+        List<Comment> comments = commentRepository
+                .findByTeamIdAndTargetTypeAndTargetIdOrderByCreatedAtAsc(me.getTeamId(), type, targetId);
+        if (comments.isEmpty()) {
+            return List.of();
+        }
+
+        // 작성자 이름은 댓글 수와 상관없이 쿼리 1번으로 조회 (N+1 방지)
+        Set<Long> authorIds = comments.stream().map(Comment::getAuthorId).collect(Collectors.toSet());
+        // 이름이 null이어도 안전하게 담기 위해 toMap 대신 HashMap 사용
+        Map<Long, String> names = new HashMap<>();
+        memberRepository.findNamesByIds(authorIds).forEach(row -> names.put(row.getId(), row.getName()));
+
+        return comments.stream()
+                .map(c -> CommentDto.Response.from(c, names.get(c.getAuthorId())))
+                .toList();
     }
 
     public CommentDto.Response create(Long memberId, CommentDto.Create req) {
@@ -54,11 +71,11 @@ public class CommentService {
 
         notifyTargetAuthor(me, req.targetType(), req.targetId());   // ← 추가
 
-        return CommentDto.Response.from(saved);
+        return CommentDto.Response.from(saved, me.getName());
     }
 
     public CommentDto.Response update(Long memberId, Long commentId, CommentDto.Update req) {
-        getJoinedMember(memberId);
+        Member me = getJoinedMember(memberId);
         Comment comment = getComment(commentId);
         if (!comment.isAuthor(memberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 댓글만 수정할 수 있습니다.");
@@ -66,7 +83,7 @@ public class CommentService {
         comment.edit(req.content());
         // @UpdateTimestamp 는 flush 시점에 갱신되므로, 응답의 updatedAt 반영을 위해 명시적 flush함
         commentRepository.flush();
-        return CommentDto.Response.from(comment);
+        return CommentDto.Response.from(comment, me.getName());
     }
 
     // Member 머지 후 관리자 삭제 허용 재구현 할 예정

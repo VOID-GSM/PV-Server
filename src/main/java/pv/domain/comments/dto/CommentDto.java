@@ -29,11 +29,12 @@ public class CommentDto {
     public record Update(@NotBlank @Size(max = 5000) String content) {}
 
     public record Response(
-            Long id, Long authorId, String content, Anchor anchor,
+            Long id, Long authorId, String authorName, String content, Anchor anchor,
             LocalDateTime createdAt, LocalDateTime updatedAt
     ) {
-        public static Response from(Comment c) {
-            return new Response(c.getId(), c.getAuthorId(), c.getContent(), c.getAnchor(),
+        // authorName: 탈퇴 등으로 작성자를 찾을 수 없으면 null
+        public static Response from(Comment c, String authorName) {
+            return new Response(c.getId(), c.getAuthorId(), authorName, c.getContent(), c.getAnchor(),
                     c.getCreatedAt(), c.getUpdatedAt());
         }
     }
