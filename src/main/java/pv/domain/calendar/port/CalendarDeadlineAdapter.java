@@ -8,6 +8,7 @@ import pv.domain.board.entity.Deadline;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class CalendarDeadlineAdapter implements CalendarDeadlinePort {
 
         return em.createQuery("""
                         select d from Deadline d
+                        left join fetch d.assigneeIds
                         where d.boardId in :boardIds
                           and d.deadlineDate between :from and :to
                         order by d.deadlineDate, d.id
@@ -30,7 +32,7 @@ public class CalendarDeadlineAdapter implements CalendarDeadlinePort {
                 .getResultList()
                 .stream()
                 .map(d -> new DeadlineView(d.getId(), d.getBoardId(), d.getName(),
-                        d.getDeadlineDate(), d.getAssigneeId(), d.getDescription()))
+                        d.getDeadlineDate(), Set.copyOf(d.getAssigneeIds()), d.getDescription()))
                 .toList();
     }
 }

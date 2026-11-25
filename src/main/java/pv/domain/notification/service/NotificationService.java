@@ -49,14 +49,14 @@ public class NotificationService {
 
         // 한 건 더 조회해서 다음 페이지가 있는지 판단한다.
         List<Notification> rows = notificationRepository
-                .findByMemberIdAndIdLessThanOrderByIdDesc(memberId, from, PageRequest.of(0, limit + 1));
+            .findByMemberIdAndIdLessThanOrderByIdDesc(memberId, from, PageRequest.of(0, limit + 1));
 
         boolean hasNext = rows.size() > limit;
         List<Notification> page = hasNext ? rows.subList(0, limit) : rows;
 
         return new NotificationListResponse(
-                page.stream().map(NotificationResponse::from).toList(),
-                hasNext ? page.get(page.size() - 1).getId() : null
+            page.stream().map(NotificationResponse::from).toList(),
+            hasNext ? page.get(page.size() - 1).getId() : null
         );
     }
 
@@ -79,20 +79,20 @@ public class NotificationService {
     // 모든 알림 유형의 설정 조회. 저장된 설정이 없으면 기본값 true
     public NotificationSettingsResponse getSettings(Long memberId) {
         Map<NotificationType, Boolean> savedSettings =
-                settingRepository.findAllByMemberId(memberId)
-                        .stream()
-                        .collect(Collectors.toMap(
-                                NotificationSetting::getType,
-                                NotificationSetting::isEnabled
-                        ));
+            settingRepository.findAllByMemberId(memberId)
+                .stream()
+                .collect(Collectors.toMap(
+                    NotificationSetting::getType,
+                    NotificationSetting::isEnabled
+                ));
 
         List<NotificationSettingsResponse.SettingItem> settings =
-                java.util.Arrays.stream(NotificationType.values())
-                        .map(type -> new NotificationSettingsResponse.SettingItem(
-                                type,
-                                savedSettings.getOrDefault(type, true)
-                        ))
-                        .toList();
+            java.util.Arrays.stream(NotificationType.values())
+                .map(type -> new NotificationSettingsResponse.SettingItem(
+                    type,
+                    savedSettings.getOrDefault(type, true)
+                ))
+                .toList();
 
         return new NotificationSettingsResponse(settings);
     }
@@ -104,9 +104,9 @@ public class NotificationService {
     @Transactional
     public void updateSetting(Long memberId, NotificationSettingUpdateRequest request) {
         settingRepository.upsertSetting(
-                memberId,
-                request.type().name(),
-                request.enabled()
+            memberId,
+            request.type().name(),
+            request.enabled()
         );
     }
 
@@ -143,5 +143,14 @@ public class NotificationService {
     @Transactional
     public void deleteByTarget(NotificationType type, Long targetId) {
         notificationRepository.deleteByTarget(type, targetId);
+    }
+
+    // 여러 대상(예: 보드 삭제 시 하위 마감 전체)의 알림을 한 번에 지운다.
+    @Transactional
+    public void deleteByTargets(Collection<NotificationType> types, Collection<Long> targetIds) {
+        if (types.isEmpty() || targetIds.isEmpty()) {
+            return;
+        }
+        notificationRepository.deleteByTargets(types, targetIds);
     }
 }

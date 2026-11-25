@@ -70,27 +70,31 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("select m.name from Member m where m.id = :id")
     Optional<String> findNameById(Long id);
 
-    // 과제 대상자 계산 (ALL): 같은 팀, 가입 완료, 출제자·선배·부장 제외
+    // 과제 대상자 계산 (ALL): 같은 팀, 가입 완료, 현재 활동 기수 이상, 출제자·선배·부장 제외
+    // currentGen이 null이면(팀에 기수가 없으면) 기수 조건 없이 계산
     @Query("""
 
-            select m.id from Member m
+            select m.id from Member m left join m.generation g
         where m.teamId = :teamId
           and m.status = pv.domain.member.entity.MemberStatus.JOINED
           and m.id <> :authorId
+          and (:currentGen is null or g.number >= :currentGen)
           and not exists (select 1 from Member x join x.roles r
                           where x.id = m.id
                             and r in (pv.domain.member.entity.Role.SENIOR,
                                       pv.domain.member.entity.Role.LEADER))
         """)
     List<Long> findAssignmentBaseIds(@Param("teamId") Long teamId,
-                                     @Param("authorId") Long authorId);
+                                     @Param("authorId") Long authorId,
+                                     @Param("currentGen") Integer currentGen);
 
     @Query("""
-        select distinct m.id from Member m join m.majors mj
+        select distinct m.id from Member m join m.majors mj left join m.generation g
         where m.teamId = :teamId
           and m.status = pv.domain.member.entity.MemberStatus.JOINED
           and m.id <> :authorId
           and mj in :majors
+          and (:currentGen is null or g.number >= :currentGen)
           and not exists (select 1 from Member x join x.roles r
                           where x.id = m.id
                             and r in (pv.domain.member.entity.Role.SENIOR,
@@ -98,5 +102,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
         """)
     List<Long> findAssignmentMajorIds(@Param("teamId") Long teamId,
                                       @Param("authorId") Long authorId,
-                                      @Param("majors") Collection<Major> majors);
+                                      @Param("majors") Collection<Major> majors,
+                                      @Param("currentGen") Integer currentGen);
     }
