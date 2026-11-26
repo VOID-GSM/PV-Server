@@ -17,6 +17,9 @@ public class InterviewGroup {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private Long teamId;
+
     @Column(nullable = false, length = 50)
     private String name;
 
@@ -28,6 +31,7 @@ public class InterviewGroup {
     private LocalDateTime createdAt;
 
     public InterviewGroup(String name, Member createdBy) {
+        this.teamId = createdBy.getTeamId();
         this.name = name;
         this.createdBy = createdBy;
     }
