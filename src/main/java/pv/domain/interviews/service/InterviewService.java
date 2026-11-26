@@ -7,10 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import pv.domain.interviews.dto.AnswerResponse;
-import pv.domain.interviews.dto.QuestionCreateRequest;
-import pv.domain.interviews.dto.QuestionDetailResponse;
-import pv.domain.interviews.dto.QuestionResponse;
+import pv.domain.interviews.dto.*;
 import pv.domain.interviews.entity.InterviewAnswer;
 import pv.domain.interviews.entity.InterviewCategory;
 import pv.domain.interviews.entity.InterviewQuestion;
@@ -18,13 +15,16 @@ import pv.domain.interviews.repository.InterviewAnswerRepository;
 import pv.domain.interviews.repository.InterviewQuestionRepository;
 import pv.domain.member.entity.Member;
 import pv.global.exception.CustomException;
-import pv.domain.interviews.dto.AnswerRequest;
 import pv.domain.member.repository.MemberRepository;
 import pv.domain.member.entity.Major;
 
+import java.util.Arrays;
 import java.util.List;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import pv.global.entity.ContentSource;
 
 @Service
@@ -130,5 +130,15 @@ public class InterviewService {
     private InterviewQuestion find(Long id) {
         return questionRepository.findById(id)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "질문이 없습니다."));
+    }
+
+    public List<QuestionGroupResponse> getGroupedQuestions(Major major) {
+        Map<InterviewCategory, List<QuestionResponse>> grouped = questionRepository.search(major, null).stream()
+                .map(QuestionResponse::from)
+                .collect(Collectors.groupingBy(QuestionResponse::category));
+
+        return Arrays.stream(InterviewCategory.values())
+                .map(c -> new QuestionGroupResponse(c, c.getLabel(), grouped.getOrDefault(c, List.of())))
+                .toList();
     }
 }

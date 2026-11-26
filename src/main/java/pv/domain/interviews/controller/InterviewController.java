@@ -7,11 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import pv.domain.interviews.dto.AnswerRequest;
-import pv.domain.interviews.dto.AnswerResponse;
-import pv.domain.interviews.dto.QuestionCreateRequest;
-import pv.domain.interviews.dto.QuestionDetailResponse;
-import pv.domain.interviews.dto.QuestionResponse;
+import pv.domain.interviews.dto.*;
 import pv.domain.interviews.entity.InterviewCategory;
 import pv.domain.interviews.service.InterviewService;
 import pv.domain.member.entity.Major;
@@ -88,5 +84,10 @@ public class InterviewController {
     ) {
         interviewService.updateAnswer(memberId, questionId, answerId, req);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/groups")
+    public List<QuestionGroupResponse> groups(@RequestParam(required = false) Major major) {
+        return interviewService.getGroupedQuestions(major);
     }
 }
