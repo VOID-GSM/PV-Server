@@ -194,7 +194,10 @@ public class AuthService {
             link.regenerate(generateCode());
             // 재발급 = 기존 코드 유출 대응. 그 코드로 로그인한 기기까지 모두 로그아웃시키고,
             // 본인은 새 코드로 다시 들어온다.
-            refreshTokenRepository.deleteAllByMemberId(memberId);
+            // 단, 부장은 재발급해 줄 사람이 없으므로(팀에 1명) 절대 로그아웃시키지 않는다. (본인 재발급 포함)
+            if (!target.isLeader()) {
+                refreshTokenRepository.deleteAllByMemberId(memberId);
+            }
         }
         return new ReEntryLinkCreateResponse(memberId, link.getCode());
     }
@@ -255,6 +258,11 @@ public class AuthService {
     // 로그인된 기기가 하나만 남았으면 로그아웃을 막는다.
     @Transactional
     public void logout(Long loginMemberId, String refreshToken) {
+        // 부장은 로그아웃 불가: 부장이 잠기면 재입장 코드를 재발급해 줄 사람이 없다.
+        if (findMember(loginMemberId).isLeader()) {
+            throw error(HttpStatus.FORBIDDEN, "부장은 로그아웃할 수 없습니다.");
+        }
+
         RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
                 .filter(t -> t.getMemberId().equals(loginMemberId))
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "유효하지 않은 refresh 토큰입니다."));
