@@ -22,7 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // 초대 링크 생성 (부장) - body 생략하면 무기한/무제한
+    // 초대 링크 생성 (부장) - body 생략하면 무기한/1회용
     @PostMapping("/teams/{teamId}/invites")
     public ResponseEntity<InviteCreateResponse> createInvite(
             @AuthenticationPrincipal Long loginMemberId,
@@ -127,6 +127,15 @@ public class AuthController {
     public ResponseEntity<ReEntryLinkGetResponse> getMyReEntryLink(
             @AuthenticationPrincipal Long loginMemberId) {
         return ResponseEntity.ok(authService.getMyReEntryLink(loginMemberId));
+    }
+
+    // 이 기기 로그아웃 (로그인 필요). 본문에 이 기기의 refresh 토큰. 마지막 기기면 409
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @AuthenticationPrincipal Long loginMemberId,
+            @Valid @RequestBody TokenRefreshRequest request) {
+        authService.logout(loginMemberId, request.refreshToken());
+        return ResponseEntity.noContent().build();
     }
 
     // 내 계정에 로그인된 기기 수 (로그인 필요)
