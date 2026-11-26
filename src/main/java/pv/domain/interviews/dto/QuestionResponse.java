@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 public record QuestionResponse(
         Long id,
+        Long groupId,
         String content,
         Major major,
         InterviewCategory category,
@@ -16,6 +17,7 @@ public record QuestionResponse(
     public static QuestionResponse from(InterviewQuestion q) {
         return new QuestionResponse(
                 q.getId(),
+                q.getGroup().getId(),
                 q.getContent(),
                 q.getMajor(),
                 q.getCategory(),
