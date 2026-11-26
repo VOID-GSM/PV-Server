@@ -23,10 +23,11 @@ public class InterviewGroupController {
 
     @PostMapping
     public ResponseEntity<Void> create(
-            @RequestBody @Valid GroupRequest req,
-            @AuthenticationPrincipal Long memberId) {
+            @Valid @RequestBody GroupRequest req,
+            @AuthenticationPrincipal Long memberId
+    ) {
         Long id = groupService.create(req, memberId);
-        return ResponseEntity.created(URI.create("/interviews/groups" + groupService.create(req, me))).build();
+        return ResponseEntity.created(URI.create("/interviews/groups/" + id)).build();
     }
 
     @GetMapping
