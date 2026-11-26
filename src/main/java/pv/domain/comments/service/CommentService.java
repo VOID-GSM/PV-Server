@@ -101,16 +101,15 @@ public class CommentService {
         Member me = getJoinedMember(memberId);
         validateTargetAuthor(memberId, req.targetType(), req.targetId());
         Long teamId = me.getTeamId();
-        int myGen = me.getGeneration().getNumber();
 
         List<Long> receivers = switch (req.scope()) {
             case MEMBERS -> req.memberIds() == null || req.memberIds().isEmpty()
                     ? List.of()
                     : memberRepository.findJoinedIds(teamId, req.memberIds());
-            case SENIOR_ALL -> memberRepository.findSeniorIds(teamId, myGen);
+            case SENIOR_ALL -> memberRepository.findSeniorIds(teamId, myGeneration(me));
             case SENIOR_SAME_MAJOR -> me.getMajors().isEmpty()
                     ? List.of()
-                    : memberRepository.findSeniorIdsByMajors(teamId, myGen, me.getMajors());
+                    : memberRepository.findSeniorIdsByMajors(teamId, myGeneration(me), me.getMajors());
         };
 
         var alreadyPending = new HashSet<>(
@@ -160,6 +159,14 @@ public class CommentService {
         if (!authorId.equals(memberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 글에만 피드백을 요청할 수 있습니다.");
         }
+    }
+
+    // 선배 범위는 내 기수가 있어야 계산할 수 있다
+    private int myGeneration(Member me) {
+        if (me.getGeneration() == null || me.getGeneration().getNumber() == null) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "기수 정보가 없어 선배에게 요청할 수 없습니다.");
+        }
+        return me.getGeneration().getNumber();
     }
 
     // 공통 부분
