@@ -237,6 +237,13 @@ public class AuthService {
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 팀입니다."));
     }
 
+    // 내 계정에 로그인된 기기 수 (로그인 필요)
+    public ConnectedDeviceCountResponse getMyDeviceCount(Long loginMemberId) {
+        findMember(loginMemberId);
+        return new ConnectedDeviceCountResponse(
+                refreshTokenRepository.countByMemberIdAndExpiresAtAfter(loginMemberId, LocalDateTime.now()));
+    }
+
     private Member findMember(Long memberId) {
         return memberRepository.findById(memberId)
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 멤버입니다."));
