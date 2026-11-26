@@ -11,6 +11,13 @@ import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
     boolean existsByQuestionId(Long questionId);
+
+    @Query("""
+            select case when count(p) > 0 then true else false end from Post p
+            where p.questionId in (select q.id from pv.domain.interviews.entity.InterviewQuestion q
+                                   where q.group.id = :groupId)
+            """)
+    boolean existsByQuestionGroupId(@Param("groupId") Long groupId);
     List<Post> findAllBySessionIdOrderByCreatedAtAsc(Long sessionId);
     List<Post> findAllByQuestionIdOrderByCreatedAtAsc(Long questionId);
 

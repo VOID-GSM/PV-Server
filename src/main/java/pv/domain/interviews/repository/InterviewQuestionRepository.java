@@ -9,13 +9,15 @@ import pv.domain.interviews.entity.InterviewQuestion;
 import pv.domain.member.entity.Major;
 
 import org.springframework.data.domain.Pageable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface InterviewQuestionRepository extends JpaRepository<InterviewQuestion, Long> {
     List<InterviewQuestion> findAllByGroupIdOrderByIdDesc(Long groupId);
-
     boolean existsByGroupIdAndContent(Long groupId, String content);
+
+    List<InterviewQuestion> findAllByGroupTeamIdAndContentIn(Long teamId, Collection<String> contents);
 
     @Query("""
             select q from InterviewQuestion q

@@ -9,7 +9,6 @@ import pv.domain.member.entity.Major;
 import pv.domain.member.entity.Member;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 @Entity
 @Table(name = "interview_question",
@@ -38,6 +37,7 @@ public class InterviewQuestion {
     private Major major;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private InterviewCategory category;
 
     @CreationTimestamp

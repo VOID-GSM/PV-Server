@@ -9,5 +9,5 @@ import pv.domain.member.entity.Major;
 public record QuestionCreateRequest(
         @NotBlank @Size(max = 500) String content,
         Major major,
-        InterviewCategory category
+        @NotNull InterviewCategory category
 ) {}

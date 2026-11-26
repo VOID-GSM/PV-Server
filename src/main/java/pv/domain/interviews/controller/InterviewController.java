@@ -57,6 +57,29 @@ public class InterviewController {
         return ResponseEntity.ok(interviewService.getAnswers(questionId, memberId));
     }
 
+    @PostMapping("/{questionId}/answers")
+    public ResponseEntity<AnswerResponse> createAnswer(
+            @PathVariable Long questionId,
+            @Valid @RequestBody AnswerRequest req,
+            @AuthenticationPrincipal Long memberId
+    ) {
+        AnswerResponse response = interviewService.createAnswer(questionId, req, memberId);
+        return ResponseEntity
+                .created(URI.create("/interviews/questions/" + questionId + "/answers"))
+                .body(response);
+    }
+
+    @PatchMapping("/{questionId}/answers/{answerId}")
+    public ResponseEntity<Void> updateAnswer(
+            @PathVariable Long questionId,
+            @PathVariable Long answerId,
+            @Valid @RequestBody AnswerRequest req,
+            @AuthenticationPrincipal Long memberId
+    ) {
+        interviewService.updateAnswer(questionId, answerId, req, memberId);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{questionId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long questionId,
