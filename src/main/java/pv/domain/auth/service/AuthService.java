@@ -26,6 +26,7 @@ import pv.domain.member.repository.MemberRepository;
 import pv.global.exception.CustomException; // 패키지 경로는 실제 위치에 맞게 수정
 import pv.global.security.JwtProvider;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +45,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final ReEntryLinkRepository reEntryLinkRepository;
     private final JwtProvider jwtProvider;
+    private final Clock clock;
 
     // ===== 초대 링크 =====
 
@@ -241,7 +243,7 @@ public class AuthService {
     public ConnectedDeviceCountResponse getMyDeviceCount(Long loginMemberId) {
         findMember(loginMemberId);
         return new ConnectedDeviceCountResponse(
-                refreshTokenRepository.countByMemberIdAndExpiresAtAfter(loginMemberId, LocalDateTime.now()));
+                refreshTokenRepository.countByMemberIdAndExpiresAtAfter(loginMemberId, LocalDateTime.now(clock)));
     }
 
     private Member findMember(Long memberId) {
