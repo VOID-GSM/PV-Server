@@ -1,24 +1,20 @@
 package pv.domain.interviews.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import pv.domain.member.entity.Major;
+import pv.domain.member.entity.Member;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 @Entity
-@Table(name = "interview_question")
+@Table(name = "interview_question",
+        uniqueConstraints = @UniqueConstraint(columnNames = {
+                "group_id", "content"
+        }))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InterviewQuestion {
@@ -26,11 +22,18 @@ public class InterviewQuestion {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 500)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "group_id")
+    private InterviewGroup group;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by")
+    private Member createdBy;
+
+    @Column(nullable = false, length = 500)
     private String content;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 20)
     private Major major;
 
     @Enumerated(EnumType.STRING)
@@ -41,9 +44,12 @@ public class InterviewQuestion {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    public InterviewQuestion(String content, Major major, InterviewCategory category) {
-        this.content = Objects.requireNonNull(content, "질문 내용은 필수입니다.");
+    public InterviewQuestion(InterviewGroup group, Member createdBy, String content,
+                             Major major, InterviewCategory category) {
+        this.group = group;
+        this.createdBy = createdBy;
+        this.content = content;
         this.major = major;
-        this.category = Objects.requireNonNull(category, "카테고리는 필수입니다.");
+        this.category = category;
     }
 }

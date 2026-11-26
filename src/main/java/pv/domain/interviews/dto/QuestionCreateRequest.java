@@ -10,5 +10,4 @@ public record QuestionCreateRequest(
         @NotBlank @Size(max = 500) String content,
         Major major,
         @NotNull InterviewCategory category
-        ) {
-}
+) {}

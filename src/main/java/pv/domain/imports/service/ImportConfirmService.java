@@ -103,7 +103,7 @@ public class ImportConfirmService {
         try {
             postRepository.saveAll(posts);
             worklogRepository.saveAll(worklogs);
-            int[] interviewResult = saveInterviews(interviews, docs, memberId, now);
+            int[] interviewResult = saveInterviews(interviews, docs, memberId, me.getTeamId(), now);
 
             documentRepository.deleteAllByImportId(importId); // 임시 문서 일괄 삭제
             job.confirm();
@@ -116,10 +116,11 @@ public class ImportConfirmService {
         }
     }
 
-    // 면접 질문: 기존 질문과 내용이 일치할 때만 답변을 연결 (공용 질문 풀이라 새 질문은 만들지 않음)
+    // 면접 질문: 우리 팀 질문 중 내용이 일치할 때만 답변을 연결 (어느 그룹에 넣을지 알 수 없어 새 질문은 만들지 않음)
     // 반환값: [저장된 개수, 이미 답변이 있어 건너뛴 개수, 일치하는 질문이 없어 건너뛴 개수]
     private int[] saveInterviews(List<ImportConfirmRequest.Item> interviews,
-                                 Map<Long, ImportDocument> docs, Long memberId, LocalDateTime now) {
+                                 Map<Long, ImportDocument> docs, Long memberId, Long teamId,
+                                 LocalDateTime now) {
         if (interviews.isEmpty()) {
             return new int[]{0, 0, 0};
         }
@@ -128,8 +129,11 @@ public class ImportConfirmService {
                 .map(i -> docs.get(i.documentId()).getTitle().strip())
                 .collect(Collectors.toSet());
 
-        Map<String, InterviewQuestion> questions = questionRepository.findAllByContentIn(contents).stream()
-                .collect(Collectors.toMap(InterviewQuestion::getContent, Function.identity()));
+        // 같은 내용의 질문이 여러 그룹에 있을 수 있으므로 가장 최근에 등록된 질문에 연결한다.
+        Map<String, InterviewQuestion> questions = questionRepository
+                .findAllByGroupTeamIdAndContentIn(teamId, contents).stream()
+                .collect(Collectors.toMap(InterviewQuestion::getContent, Function.identity(),
+                        (a, b) -> a.getId() > b.getId() ? a : b));
         if (questions.isEmpty()) {
             return new int[]{0, 0, interviews.size()};
         }
