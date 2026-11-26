@@ -170,6 +170,10 @@ public class AuthService {
 
         // 승인 대기/가입 여부를 프론트가 문구 대신 값으로 구분할 수 있게 함께 내려줌
         Member member = findMember(saved.getMemberId());
+        if (member.isLeft()) {
+            refreshTokenRepository.delete(saved);
+            throw error(HttpStatus.UNAUTHORIZED, "탈퇴한 멤버입니다.");
+        }
 
         // 토큰 값은 유지하고 만료일만 오늘부터 30일로 연장
         saved.extend(LocalDateTime.now().plusDays(REFRESH_TOKEN_DAYS));
@@ -185,6 +189,9 @@ public class AuthService {
     public ReEntryLinkCreateResponse createReEntryLink(Long loginMemberId, Long memberId) {
         Member target = findMember(memberId);
         validateLeader(loginMemberId, target.getTeamId());
+        if (target.isLeft()) {
+            throw error(HttpStatus.CONFLICT, "탈퇴한 멤버입니다.");
+        }
 
         // 멤버당 링크 1개 -> 새로 발급하면 본인 확인 API에서도 같은 링크로 바뀜
         ReEntryLink link = reEntryLinkRepository.findByMemberId(memberId).orElse(null);
@@ -207,6 +214,9 @@ public class AuthService {
         ReEntryLink link = reEntryLinkRepository.findWithLockByCode(reEntryCode)
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "유효하지 않은 재입장 링크입니다."));
         Member member = findMember(link.getMemberId());
+        if (member.isLeft()) {
+            throw error(HttpStatus.FORBIDDEN, "탈퇴한 멤버입니다.");
+        }
         Team team = findTeam(member.getTeamId());
 
         // 승인 기능이 켜져 있으면 다시 가입 승인 필요 (부장은 제외)
@@ -223,7 +233,9 @@ public class AuthService {
 
     @Transactional
     public ReEntryLinkGetResponse getMyReEntryLink(Long loginMemberId) {
-        findMember(loginMemberId);
+        if (findMember(loginMemberId).isLeft()) {
+            throw error(HttpStatus.FORBIDDEN, "탈퇴한 멤버입니다.");
+        }
 
         // 아직 발급된 링크가 없으면 자동 생성
         ReEntryLink link = reEntryLinkRepository.findByMemberId(loginMemberId)

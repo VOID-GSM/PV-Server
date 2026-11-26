@@ -13,6 +13,15 @@ import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
+    // 팀의 부장 수 (마지막 부장의 역할 삭제 방지)
+    @Query("""
+            select count(m) from Member m join m.roles r
+            where m.teamId = :teamId
+              and m.status = pv.domain.member.entity.MemberStatus.JOINED
+              and r = pv.domain.member.entity.Role.LEADER
+            """)
+    long countLeaders(@Param("teamId") Long teamId);
+
     // 디스코드 멘션용. 사용자 ID가 등록된 멤버만 반환한다. (EAGER 컬렉션 조회 없이 한 번에)
     @Query("select m.discordId from Member m where m.id in :ids and m.discordId is not null")
     List<String> findDiscordIds(@Param("ids") Collection<Long> ids);

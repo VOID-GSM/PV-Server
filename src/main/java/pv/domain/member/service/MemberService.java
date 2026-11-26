@@ -19,6 +19,8 @@ import pv.domain.member.entity.MemberStatus;
 import pv.domain.member.entity.Role;
 import pv.domain.member.repository.GenerationRepository;
 import pv.domain.member.repository.MemberRepository;
+import pv.domain.auth.repository.ReEntryLinkRepository;
+import pv.domain.auth.repository.RefreshTokenRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,8 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final GenerationRepository generationRepository;
     private final FileService fileService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final ReEntryLinkRepository reEntryLinkRepository;
 
     // ===== 본인 =====
 
@@ -104,7 +108,33 @@ public class MemberService {
         if (!target.hasRole(role)) {
             throw error(HttpStatus.NOT_FOUND, "해당 역할이 없습니다.");
         }
+        // 마지막 부장의 부장 역할을 지우면 팀에 부장이 없어져 아무도 관리 기능을 쓸 수 없다.
+        if (role == Role.LEADER && target.isLeader() && memberRepository.countLeaders(target.getTeamId()) <= 1) {
+            throw error(HttpStatus.CONFLICT, "팀의 마지막 부장은 역할을 삭제할 수 없습니다. 다른 사람에게 먼저 부장을 부여해주세요.");
+        }
         target.removeRole(role); // 모두 사라지면 MEMBER로 자동 설정
+    }
+
+    // 팀원 탈퇴 처리 (부장). 작성한 기록은 남기고 상태만 LEFT로 바꾸며,
+    // 모든 기기 로그아웃 + 재입장 코드 삭제로 다시 들어올 수 없게 한다.
+    @Transactional
+    public void removeMember(Long loginMemberId, Long memberId) {
+        Member leader = getLeader(loginMemberId);
+        Member target = findTeamMember(leader, memberId);
+
+        if (target.getId().equals(leader.getId())) {
+            throw error(HttpStatus.BAD_REQUEST, "본인은 탈퇴 처리할 수 없습니다.");
+        }
+        if (target.isLeft()) {
+            throw error(HttpStatus.CONFLICT, "이미 탈퇴한 멤버입니다.");
+        }
+        if (target.isLeader()) {
+            throw error(HttpStatus.CONFLICT, "부장은 탈퇴 처리할 수 없습니다. 먼저 부장 역할을 해제해주세요.");
+        }
+
+        target.leave();
+        refreshTokenRepository.deleteAllByMemberId(target.getId());
+        reEntryLinkRepository.deleteByMemberId(target.getId());
     }
 
     // ===== 공통 =====
