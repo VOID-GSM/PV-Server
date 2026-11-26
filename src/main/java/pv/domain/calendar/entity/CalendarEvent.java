@@ -1,24 +1,32 @@
 package pv.domain.calendar.entity;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.http.HttpStatus;
 import pv.global.exception.CustomException;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
 
 @Entity
 @Table(name = "calendar_event",
@@ -71,12 +79,29 @@ public class CalendarEvent {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @ElementCollection
+    @CollectionTable(name = "calendar_event_assignees",
+            joinColumns = @JoinColumn(name = "event_id"),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"event_id", "member_id"}),
+            indexes = @Index(name = "idx_calendar_event_assignees_member", columnList = "member_id"))
+    @Column(name = "member_id", nullable = false)
+    @BatchSize(size = 100)
+    private Set<Long> assigneeIds = new LinkedHashSet<>();
+
     public static CalendarEvent meeting(Long boardId, Long creatorId, String title, String memo,
-                                        Instant startsAt, Instant endsAt, boolean allDay) {
+                                        Instant startsAt, Instant endsAt, boolean allDay,
+                                        Collection<Long> assigneeIds) {
         CalendarEvent e = personal(creatorId, title, memo, startsAt, endsAt, allDay);
         e.type = EventType.MEETING;
         e.boardId = Objects.requireNonNull(boardId, "보드는 필수입니다.");
+        e.changeAssignees(assigneeIds);
         return e;
+    }
+
+    public void changeAssignees(Collection<Long> assigneeIds) {
+        if (assigneeIds == null) return;
+        this.assigneeIds.clear();
+        this.assigneeIds.addAll(assigneeIds);
     }
 
     public boolean isMeeting() {

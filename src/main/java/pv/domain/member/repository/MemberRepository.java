@@ -113,4 +113,11 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
                                       @Param("authorId") Long authorId,
                                       @Param("majors") Collection<Major> majors,
                                       @Param("currentGen") Integer currentGen);
-    }
+
+    @Query("""
+            select count(m) from Member m
+            where m.id in :ids and m.teamId = :teamId
+              and m.status = pv.domain.member.entity.MemberStatus.JOINED
+            """)
+    long countJoinedInTeam(@Param("teamId") Long teamId, @Param("ids") Collection<Long> ids);
+}

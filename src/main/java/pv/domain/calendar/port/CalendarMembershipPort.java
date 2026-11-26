@@ -1,5 +1,6 @@
 package pv.domain.calendar.port;
 
+import java.util.Collection;
 import java.util.Set;
 
 public interface CalendarMembershipPort {
@@ -7,4 +8,5 @@ public interface CalendarMembershipPort {
     Set<Long> activityIdsOf(Long memberId);
     Set<Long> teamActivityIdsOf(Long memberId);
     boolean isLeader(Long memberId);
+    boolean areJoinedTeammates(Long memberId, Collection<Long> memberIds);
 }

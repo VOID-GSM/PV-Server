@@ -57,6 +57,7 @@ public class CalendarService {
                         memberId, startOf(from), startOf(to.plusDays(1)),
                         orNone(boards), orNone(activities), EventType.PERSONAL)
                 .stream()
+                .filter(e -> !mine || !e.isMeeting() || e.getAssigneeIds().contains(memberId))   // ← 추가
                 .map(EventResponse::from)
                 .toList());
 
@@ -107,7 +108,11 @@ public class CalendarService {
         if (req.completed() != null && event.isMeeting()) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "회의 일정은 완료 처리할 수 없습니다.");
         }
+        if (req.assigneeIds() != null) {
+            validateAssignees(memberId, event.getType(), req.assigneeIds());
+        }
         event.update(req.title(), req.memo(), toInstant(req.startsAt()), toInstant(req.endsAt()), req.allDay());
+        event.changeAssignees(req.assigneeIds());
         if (req.completed() != null) {
             event.changeCompletion(req.completed(), Instant.now(clock));
         }
@@ -125,6 +130,7 @@ public class CalendarService {
                 if (req.boardId() != null) {
                     throw new CustomException(HttpStatus.BAD_REQUEST, "개인 일정에는 보드를 지정할 수 없습니다.");
                 }
+                validateAssignees(memberId, EventType.PERSONAL, req.assigneeIds());
                 yield CalendarEvent.personal(memberId, req.title(), req.memo(), startsAt, endsAt, req.allDay());
             }
             case MEETING -> {
@@ -132,8 +138,9 @@ public class CalendarService {
                     throw new CustomException(HttpStatus.BAD_REQUEST, "회의 일정은 보드가 필수입니다.");
                 }
                 requireBoardManager(memberId, req.boardId());
+                validateAssignees(memberId, EventType.MEETING, req.assigneeIds());
                 yield CalendarEvent.meeting(req.boardId(), memberId, req.title(), req.memo(),
-                        startsAt, endsAt, req.allDay());
+                        startsAt, endsAt, req.allDay(), req.assigneeIds());
             }
             default -> throw new CustomException(HttpStatus.BAD_REQUEST, "이 API로 만들 수 없는 일정 유형입니다.");
         };
@@ -194,6 +201,16 @@ public class CalendarService {
         }
         if (!membership.isLeader(memberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "보드 회의는 부장만 만들 수 있습니다.");
+        }
+    }
+
+    private void validateAssignees(Long memberId, EventType type, Collection<Long> assigneeIds) {
+        if (assigneeIds == null || assigneeIds.isEmpty()) return;
+        if (type != EventType.MEETING) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "담당자는 회의 일정에만 지정할 수 있습니다.");
+        }
+        if (!membership.areJoinedTeammates(memberId, assigneeIds)) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "존재하지 않는 담당자입니다.");
         }
     }
 

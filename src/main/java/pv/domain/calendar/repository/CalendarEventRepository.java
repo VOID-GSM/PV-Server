@@ -31,7 +31,19 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
                                      @Param("activityIds") Collection<Long> activityIds,
                                      @Param("personal") EventType personal);
 
+    default void deleteAllByBoardId(Long boardId) {
+        deleteAssigneesByBoardId(boardId);
+        deleteEventsByBoardId(boardId);
+    }
+
     @Modifying(flushAutomatically = true)
+    @Query(value = """
+            delete from calendar_event_assignees
+            where event_id in (select id from calendar_event where board_id = :boardId)
+            """, nativeQuery = true)
+    void deleteAssigneesByBoardId(@Param("boardId") Long boardId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from CalendarEvent e where e.boardId = :boardId")
-    void deleteAllByBoardId(@Param("boardId") Long boardId);
+    void deleteEventsByBoardId(@Param("boardId") Long boardId);
 }

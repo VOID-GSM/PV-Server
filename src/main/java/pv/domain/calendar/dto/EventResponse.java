@@ -31,7 +31,7 @@ public record EventResponse(
         return new EventResponse(e.getId(), e.getType(), e.getTitle(), e.getMemo(),
                 LocalDateTime.ofInstant(e.getStartsAt(), KST),
                 LocalDateTime.ofInstant(e.getEndsAt(), KST),
-                e.isAllDay(), e.getBoardId(), e.getActivityId(), List.of(),
+                e.isAllDay(), e.getBoardId(), e.getActivityId(), e.getAssigneeIds().stream().sorted().toList(),
                 e.getType() == EventType.PERSONAL ? e.isCompleted() : null);
     }
 
