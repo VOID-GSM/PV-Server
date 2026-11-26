@@ -10,6 +10,7 @@ import java.util.List;
 
 public interface InterviewAnswerRepository extends JpaRepository<InterviewAnswer, Long> {
     long countByQuestionId(Long questionId);
+    boolean existsByQuestionId(Long questionId);
 
     @Query("""
         select new pv.domain.interviews.dto.AnswerResponse(

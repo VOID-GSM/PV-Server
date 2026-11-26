@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import pv.domain.interviews.dto.AnswerResponse;
 import pv.domain.interviews.dto.QuestionCreateRequest;
 import pv.domain.interviews.dto.QuestionDetailResponse;
@@ -58,6 +59,14 @@ public class InterviewService {
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(HttpStatus.CONFLICT, "이미 등록된 질문입니다.");
         }
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        InterviewQuestion question = find(id);
+        if (answerRepository.existsByQuestionId(id))
+            throw new CustomException(HttpStatus.CONFLICT, "답변이 있는 질문은 삭제할 수 없습니다.");
+        questionRepository.delete(question);
     }
 
     @Transactional

@@ -6,14 +6,7 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import pv.domain.interviews.dto.AnswerRequest;
 import pv.domain.interviews.dto.AnswerResponse;
 import pv.domain.interviews.dto.QuestionCreateRequest;
@@ -61,6 +54,12 @@ public class InterviewController {
     @GetMapping("/{questionId}")
     public QuestionDetailResponse detail(@PathVariable Long questionId) {
         return interviewService.getQuestion(questionId);
+    }
+
+    @DeleteMapping("/{questionId}")
+    public ResponseEntity<Void> delete(@PathVariable Long questionId) {
+        interviewService.delete(questionId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{questionId}/answers")
