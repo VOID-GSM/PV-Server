@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
+    boolean existsByQuestionId(Long questionId);
     List<Post> findAllBySessionIdOrderByCreatedAtAsc(Long sessionId);
     List<Post> findAllByQuestionIdOrderByCreatedAtAsc(Long questionId);
-
 
     @Query("select p.authorId from Post p where p.id = :id")
     Optional<Long> findAuthorIdById(@Param("id") Long id);

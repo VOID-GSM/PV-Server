@@ -6,7 +6,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import pv.domain.interviews.dto.*;
 import pv.domain.interviews.entity.InterviewAnswer;
 import pv.domain.interviews.entity.InterviewCategory;
@@ -14,6 +13,7 @@ import pv.domain.interviews.entity.InterviewQuestion;
 import pv.domain.interviews.repository.InterviewAnswerRepository;
 import pv.domain.interviews.repository.InterviewQuestionRepository;
 import pv.domain.member.entity.Member;
+import pv.domain.posts.repository.PostRepository;
 import pv.global.exception.CustomException;
 import pv.domain.member.repository.MemberRepository;
 import pv.domain.member.entity.Major;
@@ -35,6 +35,7 @@ public class InterviewService {
     private final InterviewQuestionRepository questionRepository;
     private final InterviewAnswerRepository answerRepository;
     private final MemberRepository memberRepository;
+    private final PostRepository postRepository;
     private final Clock clock;
 
     public List<QuestionResponse> getQuestions(Major major, InterviewCategory category) {
@@ -69,6 +70,13 @@ public class InterviewService {
             throw new CustomException(HttpStatus.FORBIDDEN, "승인된 팀원만 질문을 삭제할 수 있습니다.");
         }
         InterviewQuestion question = find(id);
+        if (answerRepository.existsByQuestionId(id)) {
+            throw new CustomException(HttpStatus.CONFLICT, "답변이 있는 질문은 삭제할 수 없습니다.");
+        }
+        if (postRepository.existsByQuestionId(id)) {
+            throw new CustomException(HttpStatus.CONFLICT, "정리글이 연결된 질문은 삭제할 수 없습니다.");
+        }
+        questionRepository.delete(question);
     }
 
     @Transactional
