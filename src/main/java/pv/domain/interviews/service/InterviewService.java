@@ -62,11 +62,13 @@ public class InterviewService {
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long memberId, Long id) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
+        if (!member.isJoined()) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "승인된 팀원만 질문을 삭제할 수 있습니다.");
+        }
         InterviewQuestion question = find(id);
-        if (answerRepository.existsByQuestionId(id))
-            throw new CustomException(HttpStatus.CONFLICT, "답변이 있는 질문은 삭제할 수 없습니다.");
-        questionRepository.delete(question);
     }
 
     @Transactional

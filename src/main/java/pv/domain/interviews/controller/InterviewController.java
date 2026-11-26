@@ -53,8 +53,10 @@ public class InterviewController {
     }
 
     @DeleteMapping("/{questionId}")
-    public ResponseEntity<Void> delete(@PathVariable Long questionId) {
-        interviewService.delete(questionId);
+    public ResponseEntity<Void> delete(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long questionId) {
+        interviewService.delete(memberId, questionId);
         return ResponseEntity.noContent().build();
     }
 
