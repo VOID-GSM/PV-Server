@@ -91,14 +91,15 @@ public class CommentService {
         Member me = getJoinedMember(memberId);
         Comment comment = getComment(commentId);
         boolean leaderOfTeam = me.isLeader() && me.getTeamId().equals(comment.getTeamId());
-             if (!comment.isAuthor(memberId) && !leaderOfTeam) {
-                 throw new CustomException(HttpStatus.FORBIDDEN, "댓글을 삭제할 권한이 없습니다.");
-             }
+        if (!comment.isAuthor(memberId) && !leaderOfTeam) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "댓글을 삭제할 권한이 없습니다.");
+        }
         commentRepository.delete(comment);
     }
 
     public List<FeedbackRequestDto.Response> requestFeedback(Long memberId, FeedbackRequestDto.Create req) {
         Member me = getJoinedMember(memberId);
+        validateTargetAuthor(memberId, req.targetType(), req.targetId());
         Long teamId = me.getTeamId();
         int myGen = me.getGeneration().getNumber();
 
@@ -144,6 +145,21 @@ public class CommentService {
             throw new CustomException(HttpStatus.FORBIDDEN, "요청받은 사람만 완료할 수 있습니다.");
         }
         request.complete();
+    }
+
+    // 피드백 요청은 본인 글(정리글/업무일지/제출물)에만 보낼 수 있다
+    private void validateTargetAuthor(Long memberId, TargetType type, Long targetId) {
+        Long authorId = switch (type) {
+            case NOTE -> postRepository.findAuthorIdById(targetId).orElse(null);
+            case WORKLOG -> worklogRepository.findAuthorIdById(targetId).orElse(null);
+            case SUBMISSION -> submissionRepository.findSubmitterIdById(targetId).orElse(null);
+        };
+        if (authorId == null) {
+            throw new CustomException(HttpStatus.NOT_FOUND, "피드백을 요청할 글을 찾을 수 없습니다.");
+        }
+        if (!authorId.equals(memberId)) {
+            throw new CustomException(HttpStatus.FORBIDDEN, "본인 글에만 피드백을 요청할 수 있습니다.");
+        }
     }
 
     // 공통 부분
