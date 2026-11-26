@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import pv.domain.interviews.dto.*;
 import pv.domain.interviews.entity.InterviewAnswer;
 import pv.domain.interviews.entity.InterviewCategory;
@@ -27,6 +28,8 @@ import java.util.stream.Collectors;
 
 import pv.global.entity.ContentSource;
 
+import static org.springframework.http.HttpStatus.NOT_FOUND;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -45,7 +48,7 @@ public class InterviewService {
     @Transactional
     public Long create(Long memberId, QuestionCreateRequest req) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(NOT_FOUND, "회원을 찾을 수 없습니다."));
         if (!member.isJoined()) {
             throw new CustomException(HttpStatus.FORBIDDEN, "승인된 팀원만 질문을 등록할 수 있습니다.");
         }
@@ -65,7 +68,7 @@ public class InterviewService {
     @Transactional
     public void delete(Long memberId, Long id) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(NOT_FOUND, "회원을 찾을 수 없습니다."));
         if (!member.isJoined()) {
             throw new CustomException(HttpStatus.FORBIDDEN, "승인된 팀원만 질문을 삭제할 수 있습니다.");
         }
@@ -98,7 +101,7 @@ public class InterviewService {
     @Transactional
     public AnswerResponse createAnswer(Long memberId, Long questionId, AnswerRequest req) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(NOT_FOUND, "회원을 찾을 수 없습니다."));
         if (!member.isJoined()) {
             throw new CustomException(HttpStatus.FORBIDDEN, "승인된 팀원만 답변할 수 있습니다.");
         }
@@ -121,7 +124,7 @@ public class InterviewService {
     public void updateAnswer(Long memberId, Long questionId, Long answerId, AnswerRequest req) {
         InterviewAnswer answer = answerRepository.findById(answerId)
                 .filter(a -> a.belongsTo(questionId))
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "답변을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(NOT_FOUND, "답변을 찾을 수 없습니다."));
         if (!answer.isWrittenBy(memberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 답변만 수정할 수 있습니다.");
         }
@@ -139,16 +142,6 @@ public class InterviewService {
 
     private InterviewQuestion find(Long id) {
         return questionRepository.findById(id)
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "질문이 없습니다."));
-    }
-
-    public List<QuestionGroupResponse> getGroupedQuestions(Major major) {
-        Map<InterviewCategory, List<QuestionResponse>> grouped = questionRepository.search(major, null).stream()
-                .map(QuestionResponse::from)
-                .collect(Collectors.groupingBy(QuestionResponse::category));
-
-        return Arrays.stream(InterviewCategory.values())
-                .map(c -> new QuestionGroupResponse(c, c.getLabel(), grouped.getOrDefault(c, List.of())))
-                .toList();
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "질문이 없습니다."));
     }
 }

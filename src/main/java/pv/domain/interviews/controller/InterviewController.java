@@ -87,9 +87,4 @@ public class InterviewController {
         interviewService.updateAnswer(memberId, questionId, answerId, req);
         return ResponseEntity.noContent().build();
     }
-
-    @GetMapping("/groups")
-    public List<QuestionGroupResponse> groups(@RequestParam(required = false) Major major) {
-        return interviewService.getGroupedQuestions(major);
-    }
 }
