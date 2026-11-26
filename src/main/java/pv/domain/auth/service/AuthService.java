@@ -38,6 +38,9 @@ public class AuthService {
 
     private static final long REFRESH_TOKEN_DAYS = 30;
 
+    // 초대 링크 기본 사용 횟수 (여러 명이 쓸 링크는 부장이 maxUses로 직접 지정)
+    private static final int DEFAULT_INVITE_MAX_USES = 1;
+
     private final InviteRepository inviteRepository;
     private final TeamRepository teamRepository;
     private final MemberRepository memberRepository;
@@ -54,7 +57,8 @@ public class AuthService {
         validateLeader(loginMemberId, teamId);
 
         LocalDateTime expiresAt = request == null ? null : request.expiresAt();
-        Integer maxUses = request == null ? null : request.maxUses();
+        // 사용 횟수를 지정하지 않으면 1회용 (예전 링크로 재가입해 중복 계정이 생기는 것 방지)
+        Integer maxUses = request == null || request.maxUses() == null ? DEFAULT_INVITE_MAX_USES : request.maxUses();
 
         Invite invite = inviteRepository.save(new Invite(teamId, generateCode(), expiresAt, maxUses));
         return new InviteCreateResponse(invite.getId(), invite.getCode(), invite.getExpiresAt(), invite.getMaxUses());
@@ -188,6 +192,9 @@ public class AuthService {
             link = reEntryLinkRepository.save(new ReEntryLink(memberId, generateCode()));
         } else {
             link.regenerate(generateCode());
+            // 재발급 = 기존 코드 유출 대응. 그 코드로 로그인한 기기까지 모두 로그아웃시키고,
+            // 본인은 새 코드로 다시 들어온다.
+            refreshTokenRepository.deleteAllByMemberId(memberId);
         }
         return new ReEntryLinkCreateResponse(memberId, link.getCode());
     }
@@ -203,7 +210,12 @@ public class AuthService {
         member.reEnter(team.isApprovalRequired());
 
         TokenRefreshResponse tokens = issueTokens(member.getId());
-        return new ReEntryUseResponse(member.getId(), member.getStatus(), tokens.accessToken(), tokens.refreshToken());
+
+        // 재입장 코드는 1회용: 사용하면 바로 새 코드로 바꾼다. (유출된 코드는 한 번만 쓸 수 있음)
+        link.regenerate(generateCode());
+
+        return new ReEntryUseResponse(member.getId(), member.getStatus(), tokens.accessToken(), tokens.refreshToken(),
+                link.getCode());
     }
 
     @Transactional
@@ -237,6 +249,23 @@ public class AuthService {
     private Team findTeam(Long teamId) {
         return teamRepository.findById(teamId)
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "존재하지 않는 팀입니다."));
+    }
+
+    // 이 기기 로그아웃 (로그인 필요). 비밀번호가 없어 모든 기기가 로그아웃되면 계정을 잃을 수 있으므로
+    // 로그인된 기기가 하나만 남았으면 로그아웃을 막는다.
+    @Transactional
+    public void logout(Long loginMemberId, String refreshToken) {
+        RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
+                .filter(t -> t.getMemberId().equals(loginMemberId))
+                .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "유효하지 않은 refresh 토큰입니다."));
+
+        // 이미 만료된 토큰은 기기 수에 포함되지 않으므로 그냥 정리한다.
+        if (token.getExpiresAt().isAfter(LocalDateTime.now(clock))
+                && refreshTokenRepository.countByMemberIdAndExpiresAtAfter(loginMemberId, LocalDateTime.now(clock)) <= 1) {
+            throw error(HttpStatus.CONFLICT, "마지막 기기는 로그아웃할 수 없습니다.");
+        }
+
+        refreshTokenRepository.delete(token);
     }
 
     // 내 계정에 로그인된 기기 수 (로그인 필요)
