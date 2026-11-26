@@ -41,6 +41,7 @@ public class InterviewQuestion {
     private InterviewCategory category;
 
     @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 
     public InterviewQuestion(InterviewGroup group, Member createdBy, String content,

@@ -116,7 +116,7 @@ public class ImportConfirmService {
         }
     }
 
-    // 면접 질문: 기존 질문과 내용이 일치할 때만 답변을 연결 (공용 질문 풀이라 새 질문은 만들지 않음)
+    // 면접 질문: 우리 팀 질문 중 내용이 일치할 때만 답변을 연결 (어느 그룹에 넣을지 알 수 없어 새 질문은 만들지 않음)
     // 반환값: [저장된 개수, 이미 답변이 있어 건너뛴 개수, 일치하는 질문이 없어 건너뛴 개수]
     private int[] saveInterviews(List<ImportConfirmRequest.Item> interviews,
                                  Map<Long, ImportDocument> docs, Long memberId, Long teamId,
