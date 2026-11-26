@@ -89,6 +89,15 @@ public class MemberController {
         return ResponseEntity.noContent().build();
     }
 
+    // 팀원 탈퇴 처리 (부장). 기록은 남고 로그인·재입장 불가
+    @DeleteMapping("/{memberId}")
+    public ResponseEntity<Void> removeMember(
+            @AuthenticationPrincipal Long loginMemberId,
+            @PathVariable Long memberId) {
+        memberService.removeMember(loginMemberId, memberId);
+        return ResponseEntity.noContent().build();
+    }
+
     // 프로필 사진 변경 (본인)
     @PutMapping("/me/profile-image")
     public ResponseEntity<MemberGetResponse> updateProfileImage(

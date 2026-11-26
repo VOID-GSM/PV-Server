@@ -91,11 +91,20 @@ public class Member {
         this.status = MemberStatus.JOINED;
     }
 
+    public boolean isLeft() {
+        return this.status == MemberStatus.LEFT;
+    }
+
+    // 탈퇴 처리 (부장). 작성한 기록은 남기고 상태만 바꾼다.
+    public void leave() {
+        this.status = MemberStatus.LEFT;
+    }
+
     // 재입장: 이미 승인된 멤버는 상태 유지 (다른 기기에서 재입장해도 기존 기기가 막히지 않게)
     // 부장은 승인 불필요, 나머지는 승인 대기 중인 경우에만 승인 기능 여부에 따라 상태 결정
     public void reEnter(boolean approvalRequired) {
-        if (this.status == MemberStatus.JOINED) {
-            return;
+        if (this.status == MemberStatus.JOINED || this.status == MemberStatus.LEFT) {
+            return; // 탈퇴한 회원은 재입장으로 복구되지 않는다.
         }
         if (roles.contains(Role.LEADER)) {
             this.status = MemberStatus.JOINED;
