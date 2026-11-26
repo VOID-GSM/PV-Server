@@ -22,69 +22,47 @@ public class InterviewController {
     private final InterviewService interviewService;
 
     @GetMapping
-    public List<QuestionResponse> list(
+    public ResponseEntity<List<QuestionResponse>> getQuestions(
             @RequestParam(required = false) Major major,
-            @RequestParam(required = false) InterviewCategory category
+            @RequestParam(required = false) InterviewCategory category,
+            @AuthenticationPrincipal Long memberId
     ) {
-        return interviewService.getQuestions(major, category);
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> create(
-            @AuthenticationPrincipal Long memberId,
-            @RequestBody @Valid QuestionCreateRequest req
-    ) {
-        Long id = interviewService.create(memberId, req);
-        return ResponseEntity.created(URI.create("/interviews/questions/" + id)).build();
+        return ResponseEntity.ok(interviewService.getQuestions(major, category, memberId));
     }
 
     @GetMapping("/random")
-    public List<QuestionResponse> random(
+    public ResponseEntity<List<QuestionResponse>> getRandom(
+            @RequestParam(required = false) Long groupId,
             @RequestParam(required = false) Major major,
             @RequestParam(required = false) InterviewCategory category,
-            @RequestParam(defaultValue = "1") @Min(1) @Max(20) int count
+            @RequestParam(defaultValue = "1") @Min(1) @Max(20) int count,
+            @AuthenticationPrincipal Long memberId
     ) {
-        return interviewService.getRandom(major, category, count);
+        return ResponseEntity.ok(interviewService.getRandom(groupId, major, category, count, memberId));
     }
 
     @GetMapping("/{questionId}")
-    public QuestionDetailResponse detail(@PathVariable Long questionId) {
-        return interviewService.getQuestion(questionId);
+    public ResponseEntity<QuestionDetailResponse> getQuestion(
+            @PathVariable Long questionId,
+            @AuthenticationPrincipal Long memberId
+    ) {
+        return ResponseEntity.ok(interviewService.getQuestion(questionId, memberId));
+    }
+
+    @GetMapping("/{questionId}/answers")
+    public ResponseEntity<List<AnswerResponse>> getAnswers(
+            @PathVariable Long questionId,
+            @AuthenticationPrincipal Long memberId
+    ) {
+        return ResponseEntity.ok(interviewService.getAnswers(questionId, memberId));
     }
 
     @DeleteMapping("/{questionId}")
     public ResponseEntity<Void> delete(
-            @AuthenticationPrincipal Long memberId,
-            @PathVariable Long questionId) {
-        interviewService.delete(memberId, questionId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/{questionId}/answers")
-    public List<AnswerResponse> answers(@PathVariable Long questionId) {
-        return interviewService.getAnswers(questionId);
-    }
-
-    @PostMapping("/{questionId}/answers")
-    public ResponseEntity<AnswerResponse> createAnswer(
-            @AuthenticationPrincipal Long memberId,
             @PathVariable Long questionId,
-            @RequestBody @Valid AnswerRequest req
+            @AuthenticationPrincipal Long memberId
     ) {
-        AnswerResponse response = interviewService.createAnswer(memberId, questionId, req);
-        return ResponseEntity
-                .created(URI.create("/interviews/questions/" + questionId + "/answers"))
-                .body(response);
-    }
-
-    @PatchMapping("/{questionId}/answers/{answerId}")
-    public ResponseEntity<Void> updateAnswer(
-            @AuthenticationPrincipal Long memberId,
-            @PathVariable Long questionId,
-            @PathVariable Long answerId,
-            @RequestBody @Valid AnswerRequest req
-    ) {
-        interviewService.updateAnswer(memberId, questionId, answerId, req);
+        interviewService.delete(questionId, memberId);
         return ResponseEntity.noContent().build();
     }
 }
