@@ -201,7 +201,7 @@ public class AuthService {
 
     @Transactional
     public ReEntryUseResponse useReEntryLink(String reEntryCode) {
-        ReEntryLink link = reEntryLinkRepository.findByCode(reEntryCode)
+        ReEntryLink link = reEntryLinkRepository.findWithLockByCode(reEntryCode)
                 .orElseThrow(() -> error(HttpStatus.NOT_FOUND, "유효하지 않은 재입장 링크입니다."));
         Member member = findMember(link.getMemberId());
         Team team = findTeam(member.getTeamId());
