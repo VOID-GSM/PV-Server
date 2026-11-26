@@ -128,4 +128,11 @@ public class AuthController {
             @AuthenticationPrincipal Long loginMemberId) {
         return ResponseEntity.ok(authService.getMyReEntryLink(loginMemberId));
     }
+
+    // 내 계정에 로그인된 기기 수 (로그인 필요)
+    @GetMapping("/members/me/devices/count")
+    public ResponseEntity<ConnectedDeviceCountResponse> getMyDeviceCount(
+            @AuthenticationPrincipal Long loginMemberId) {
+        return ResponseEntity.ok(authService.getMyDeviceCount(loginMemberId));
+    }
 }
