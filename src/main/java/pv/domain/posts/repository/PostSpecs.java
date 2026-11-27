@@ -4,6 +4,7 @@ import org.springframework.data.jpa.domain.Specification;
 import pv.domain.posts.entity.Post;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 public class PostSpecs {
     private PostSpecs() {}
@@ -25,6 +26,12 @@ public class PostSpecs {
     public static Specification<Post> createdFrom(LocalDate from) {
         return (root, q, cb) ->
                 from == null ? null : cb.greaterThanOrEqualTo(root.get("createdAt"), from.atStartOfDay());
+    }
+
+    public static Specification<Post> tag(String tag) {
+        String normalized = Post.normalizeTag(tag);
+        return (root, q, cb) ->
+                normalized.isEmpty() ? null : cb.isMember(normalized, root.<Set<String>>get("tags"));
     }
 
     public static Specification<Post> createdTo(LocalDate to) {

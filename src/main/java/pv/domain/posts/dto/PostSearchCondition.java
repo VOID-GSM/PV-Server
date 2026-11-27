@@ -12,10 +12,11 @@ public record PostSearchCondition(
         @Pattern(regexp = "me|\\d{1,18}", message = "author는 'me' 또는 숫자여야 합니다.")
         String author,
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+        String tag
 ) {
-        @AssertTrue(message = "시작일은 종료일보다 늦을 수 없습니다.")
-        public boolean isValidRange() {
-                return from == null || to == null || !from.isAfter(to);
-        }
+    @AssertTrue(message = "시작일은 종료일보다 늦을 수 없습니다.")
+    public boolean isValidRange() {
+        return from == null || to == null || !from.isAfter(to);
+    }
 }

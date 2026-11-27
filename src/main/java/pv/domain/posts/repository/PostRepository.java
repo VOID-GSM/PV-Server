@@ -21,6 +21,9 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
     List<Post> findAllBySessionIdOrderByCreatedAtAsc(Long sessionId);
     List<Post> findAllByQuestionIdOrderByCreatedAtAsc(Long questionId);
 
+    @Query("select distinct t from Post p join p.tags t order by t")
+    List<String> findAllTags();
+
     @Query("select p.authorId from Post p where p.id = :id")
     Optional<Long> findAuthorIdById(@Param("id") Long id);
 }

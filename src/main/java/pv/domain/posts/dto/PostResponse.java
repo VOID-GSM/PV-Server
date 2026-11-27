@@ -3,6 +3,7 @@ package pv.domain.posts.dto;
 import pv.domain.posts.entity.Post;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record PostResponse(
         Long id,
@@ -14,7 +15,8 @@ public record PostResponse(
         String title,
         String content,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        List<String> tags
 ) {
     public static PostResponse from(Post post, String authorName) {
         return new PostResponse(
@@ -27,7 +29,8 @@ public record PostResponse(
                 post.getTitle(),
                 post.getContent(),
                 post.getCreatedAt(),
-                post.getUpdatedAt()
+                post.getUpdatedAt(),
+                post.getTags().stream().sorted().toList()
         );
     }
 }
