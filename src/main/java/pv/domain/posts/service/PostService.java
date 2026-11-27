@@ -60,7 +60,8 @@ public class PostService {
                 .and(sessionId(cond.sessionId()))
                 .and(authorId(resolveAuthor(cond.author(), currentMemberId)))
                 .and(createdFrom(cond.from()))
-                .and(createdTo(cond.to()));
+                .and(createdTo(cond.to()))
+                .and(tag(cond.tag()));
         Page<Post> posts = postRepository.findAll(spec, pageable);
         Map<Long, String> names = memberNames(posts.getContent().stream().map(Post::getAuthorId).toList());
         return posts.map(post -> PostSummaryResponse.from(post, names.get(post.getAuthorId())));
@@ -89,6 +90,9 @@ public class PostService {
                 req.content(),
                 LocalDateTime.now(clock)
         );
+        if (req.tags() != null) {
+            post.replaceTags(req.tags());
+        }
         return PostResponse.from(postRepository.save(post), member.getName());
     }
 
@@ -108,17 +112,24 @@ public class PostService {
         if (!post.isWrittenBy(currentMemberId)) {
             throw new CustomException(HttpStatus.FORBIDDEN, "본인 글만 수정할 수 있습니다.");
         }
-        Set<Long> before = new HashSet<>(FileReferences.extractFileIds(post.getContent()));
-        Set<Long> after = new HashSet<>(FileReferences.extractFileIds(req.content()));
+        // 본문을 바꿀 때만 첨부 파일을 비교한다.
+        // (content가 null인 요청에서 비교하면 기존 이미지가 전부 '삭제됨'으로 판단되어 지워진다)
+        if (req.content() != null) {
+            Set<Long> before = new HashSet<>(FileReferences.extractFileIds(post.getContent()));
+            Set<Long> after = new HashSet<>(FileReferences.extractFileIds(req.content()));
 
-        Set<Long> added = new HashSet<>(after);
-        added.removeAll(before);
-        Set<Long> removed = new HashSet<>(before);
-        removed.removeAll(after);
+            Set<Long> added = new HashSet<>(after);
+            added.removeAll(before);
+            Set<Long> removed = new HashSet<>(before);
+            removed.removeAll(after);
 
-        fileService.attachByIds(currentMemberId, added);
-        fileService.deleteByIds(currentMemberId, removed);
+            fileService.attachByIds(currentMemberId, added);
+            fileService.deleteByIds(currentMemberId, removed);
+        }
         post.update(req.title(), req.content());
+        if (req.tags() != null) {
+            post.replaceTags(req.tags());
+        }
         postRepository.flush();
         return PostResponse.from(post, member.getName());
     }
@@ -143,6 +154,11 @@ public class PostService {
         return posts.stream()
                 .map(post -> PostResponse.from(post, names.get(post.getAuthorId())))
                 .toList();
+    }
+
+    public List<String> getTags(Long currentMemberId) {
+        findJoinedMember(currentMemberId);
+        return postRepository.findAllTags();
     }
 
     private Post findPost(Long postId) {
