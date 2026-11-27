@@ -41,7 +41,7 @@ public class PostController {
             @Valid @ModelAttribute PostSearchCondition cond,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)Pageable pageable,
             @AuthenticationPrincipal Long memberId
-            ) {
+    ) {
         return ResponseEntity.ok(postService.getPosts(cond, memberId, pageable));
     }
 
@@ -52,6 +52,11 @@ public class PostController {
     ) {
         PostResponse res = postService.create(req, memberId);
         return ResponseEntity.created(URI.create("/posts/" + res.id())).body(res);
+    }
+
+    @GetMapping("/tags")
+    public ResponseEntity<List<String>> getTags(@AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(postService.getTags(memberId));
     }
 
     @GetMapping("/compare")
