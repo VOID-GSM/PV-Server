@@ -1,24 +1,22 @@
 package pv.domain.posts.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Objects;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+
 import pv.global.entity.ContentSource;
 
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Table(
@@ -67,6 +65,15 @@ public class Post {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @ElementCollection
+    @CollectionTable(
+            name = "post_tags",
+            joinColumns = @JoinColumn(name = "post_id"),
+            indexes = @Index(name = "idx_post_tags_tag", columnList = "tag"))
+    @Column(name = "tag", nullable = false, length = 30)
+    @BatchSize(size = 100)
+    private Set<String> tags = new LinkedHashSet<>();
+
     private Post(Long authorId, Long activityId, Long sessionId,
                  Long questionId, String title, String content,
                  LocalDateTime createdAt, ContentSource source) {
@@ -100,6 +107,27 @@ public class Post {
         if (content != null) {
             this.content = content;
         }
+    }
+
+    public void replaceTags(Collection<String> newTags) {
+        this.tags.clear();
+        for (String raw : newTags) {
+            String tag = normalizeTag(raw);
+            if (!tag.isEmpty()) {
+                this.tags.add(tag);
+            }
+        }
+    }
+
+    public static String normalizeTag(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String tag = raw.strip();
+        while (tag.startsWith("#")) {
+            tag = tag.substring(1).strip();
+        }
+        return tag;
     }
 
     public boolean isWrittenBy(Long memberId) {
