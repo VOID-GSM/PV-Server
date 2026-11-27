@@ -55,7 +55,12 @@ public class CommentController {
         commentService.delete(memberId, commentId);
     }
 
-    // Member 머지 후 피드백 요청 생성 API 추가 (POST /comments/feedback-requests)
+    @PostMapping("/feedback-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<FeedbackRequestDto.Response> requestFeedback(@AuthenticationPrincipal Long memberId,
+                                                             @RequestBody @Valid FeedbackRequestDto.Create req) {
+        return commentService.requestFeedback(memberId, req);
+    }
 
     @GetMapping("/feedback-requests/me")
     public List<FeedbackRequestDto.Response> getMyRequests(@AuthenticationPrincipal Long memberId) {
