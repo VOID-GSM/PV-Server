@@ -127,7 +127,7 @@ public class Post {
         while (tag.startsWith("#")) {
             tag = tag.substring(1).strip();
         }
-        return tag;
+        return tag.toLowerCase(java.util.Locale.ROOT);   // ← 추가
     }
 
     public boolean isWrittenBy(Long memberId) {
